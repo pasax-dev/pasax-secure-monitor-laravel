@@ -7,94 +7,115 @@ use Pasax\SecureMonitor\Services\PasaxSentinelBridge;
 
 class PasaxSentinelCommand extends Command
 {
-    /**
-     * The name and signature of the console command.
-     *
-     * @var string
-     */
     protected $signature = 'pasax:sentinel
-                            {--ping : Test connectivity with the Sentinel daemon}
-                            {--status : Inspect Sentinel status and active kernel firewall rules}
-                            {--block= : Immediate kernel drop test for the specified IP address}
-                            {--unblock= : Lift kernel firewall drop for the specified IP address}
-                            {--reason= : Reason for manual IP drop}';
+                            {--block= : IP address to drop instantly via Linux kernel firewall}
+                            {--unblock= : IP address to remove from Linux firewall drop list}
+                            {--reason=ANOMALOUS_PAYLOAD_DETECTED : Justification tag for block action}
+                            {--duration=1440 : Duration of ban in minutes}
+                            {--ping : Test health and roundtrip latency with daemon}
+                            {--status : Inspect sentinel status and kernel ruleset metrics}';
 
-    /**
-     * The console command description.
-     *
-     * @var string
-     */
-    protected $description = 'Communicate directly with the local Pasax Sentinel host daemon over Unix socket';
+    protected $description = "Communicate directly with the local Pasax Sentinel host daemon over Unix socket";
 
     public function handle(PasaxSentinelBridge $bridge): int
     {
-        $this->info('[Pasax Sentinel IPC Diagnostics]');
-        $this->line('Socket target: '.$bridge->getSocketPath());
+        $this->info("[Pasax Sentinel IPC Diagnostics]");
+        $this->line("Socket target: {$bridge->getSocketPath()}");
 
-        if ($ipToBlock = $this->option('block')) {
-            $reason = (string) ($this->option('reason') ?: 'MANUAL_ARTISAN_PROBE');
-            $this->info("Transmitting kernel block command for IP: {$ipToBlock}...");
-            $success = $bridge->blockIp($ipToBlock, $reason);
+        // 1. Block IP Option
+        if ($ip = $this->option("block")) {
+            $reason = (string) $this->option("reason");
+            $duration = (int) $this->option("duration");
+
+            $this->comment(
+                "Requesting kernel firewall drop for IP: {$ip} (Reason: {$reason})...",
+            );
+            $success = $bridge->blockIP($ip, $reason, $duration);
 
             if ($success) {
-                $this->info("✔ Success: IP {$ipToBlock} dropped in kernel firewall via Sentinel.");
+                $this->info(
+                    "✔ Successfully instructed Sentinel to block {$ip} at the kernel level.",
+                );
 
                 return self::SUCCESS;
             }
 
-            $this->error("✖ Error: Failed to drop IP {$ipToBlock} over Sentinel IPC socket.");
+            $this->error(
+                "✖ Failed to block {$ip}. Check if sentinel daemon is running with CAP_NET_ADMIN.",
+            );
 
             return self::FAILURE;
         }
 
-        if ($ipToUnblock = $this->option('unblock')) {
-            $this->info("Transmitting kernel unblock command for IP: {$ipToUnblock}...");
-            $success = $bridge->unblockIp($ipToUnblock);
+        // 2. Unblock IP Option
+        if ($ip = $this->option("unblock")) {
+            $this->comment("Requesting unban for IP: {$ip}...");
+            $success = $bridge->unblockIP($ip);
 
             if ($success) {
-                $this->info("✔ Success: IP {$ipToUnblock} unblocked in kernel firewall.");
+                $this->info(
+                    "✔ Successfully instructed Sentinel to unblock {$ip}.",
+                );
 
                 return self::SUCCESS;
             }
 
-            $this->error("✖ Error: Failed to unblock IP {$ipToUnblock} over Sentinel IPC socket.");
+            $this->error("✖ Failed to unblock {$ip}. Check daemon logs.");
 
             return self::FAILURE;
         }
 
-        if ($this->option('ping')) {
-            $this->info('Pinging Sentinel daemon...');
-            if ($bridge->ping()) {
-                $this->info('✔ PONG received: Sentinel daemon is active and responsive.');
+        // 3. Ping Option
+        if ($this->option("ping")) {
+            $this->comment("Pinging Sentinel daemon...");
+            $pong = $bridge->ping();
+
+            if ($pong) {
+                $this->info(
+                    "✔ PONG received from Sentinel daemon. IPC socket is fully operational.",
+                );
 
                 return self::SUCCESS;
             }
 
-            $this->error('✖ PING failed: Sentinel daemon did not respond.');
+            $this->error("✖ PING failed: Sentinel daemon did not respond.");
 
             return self::FAILURE;
         }
 
         // Default or --status
-        $this->info('Inspecting Sentinel daemon status...');
+        $this->info("Inspecting Sentinel daemon status...");
         $status = $bridge->status();
 
         if ($status !== null) {
-            $this->info('✔ Sentinel Daemon is ONLINE');
+            $this->info("✔ Sentinel Daemon is ONLINE");
+
+            $blockedSample = array_map(function ($item) {
+                if (is_array($item)) {
+                    return $item["ip"] ?? json_encode($item);
+                }
+                return (string) $item;
+            }, (array) ($status["blocked_ips"] ?? []));
+
             $this->table(
-                ['Metric', 'Value'],
+                ["Metric", "Value"],
                 [
-                    ['Firewall Driver', $status['firewall_driver'] ?? 'unknown'],
-                    ['Kernel Drops Count', $status['blocked_count'] ?? 0],
-                    ['Active Drops Sample', implode(', ', (array) ($status['blocked_ips'] ?? []))],
-                ]
+                    [
+                        "Firewall Driver",
+                        $status["firewall_driver"] ?? "unknown",
+                    ],
+                    ["Kernel Drops Count", $status["blocked_count"] ?? 0],
+                    ["Active Drops Sample", implode(", ", $blockedSample)],
+                ],
             );
 
             return self::SUCCESS;
         }
 
-        $this->warn('⚠ Sentinel daemon is OFFLINE or socket is not created.');
-        $this->line('Ensure `pasax-sentinel` daemon is running on the host system.');
+        $this->warn("⚠ Sentinel daemon is OFFLINE or socket is not created.");
+        $this->line(
+            "Ensure `pasax-sentinel` daemon is running on the host system.",
+        );
 
         return self::FAILURE;
     }
