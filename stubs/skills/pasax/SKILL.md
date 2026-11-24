@@ -10,19 +10,19 @@ metadata:
 
 This application is protected by **`pasax/secure-monitor`** (Bulwark), an enterprise-grade, standalone, headless self-hosted Web Application Firewall (WAF) and security auditing toolkit for Laravel applications.
 
-> 📖 **Official Online Documentation Portal**: [https://pasax.is-a.dev/](https://pasax.is-a.dev/)  
+> 📖 **Official Online Documentation Portal**: [https://pasax.web.id/docs/pasax-secure-monitor](https://pasax.web.id/docs/pasax-secure-monitor)  
 > Panduan lengkap 26 bab, diagram arsitektur interaktif, peta ancaman realtime, REST API contract, dan resep produksi.
 >
-> **Rujukan Cepat Dokumentasi Online (`https://pasax.is-a.dev/`)**:
-> - 🚀 [Panduan Instalasi & Pengaturan Awal](https://pasax.is-a.dev/getting-started/installation/)
-> - ⚙️ [Konfigurasi Lengkap `config/pasax.php` & `.env`](https://pasax.is-a.dev/getting-started/configuration/)
-> - 🛡️ [Mesin Deteksi Ancaman & Tanda Tangan ReDoS](https://pasax.is-a.dev/core-architecture/threat-detection-engine/)
-> - 📱 [Device Quarantine & Resolusi Reverse Proxy](https://pasax.is-a.dev/core-architecture/device-quarantine/)
-> - 🔒 [Audit Keamanan Server & Integritas Berkas](https://pasax.is-a.dev/security-modules/server-security-and-webshells/)
-> - 📊 [Streaming Access Log Parser (< 15MB RAM)](https://pasax.is-a.dev/security-modules/access-log-streaming/)
-> - 🌐 [Kontrak REST API & JSON Envelope](https://pasax.is-a.dev/api-reference/api-overview/)
-> - 🎨 [Custom Dashboard & API Host (Tanpa Ubah Vendor)](https://pasax.is-a.dev/integration-guides/custom-dashboard-dan-api-tanpa-ubah-vendor/)
-> - 🧱 [Hardening Webserver Nginx](https://pasax.is-a.dev/webserver-hardening/nginx-hardened-waf/) & [Apache .htaccess](https://pasax.is-a.dev/webserver-hardening/apache-htaccess-hardening/)
+> **Rujukan Cepat Dokumentasi Online (`https://pasax.web.id/docs/pasax-secure-monitor`)**:
+> - 🚀 [Panduan Instalasi & Pengaturan Awal](https://pasax.web.id/docs/pasax-secure-monitor/getting-started/installation/)
+> - ⚙️ [Konfigurasi Lengkap `config/pasax.php` & `.env`](https://pasax.web.id/docs/pasax-secure-monitor/getting-started/configuration/)
+> - 🛡️ [Mesin Deteksi Ancaman & Tanda Tangan ReDoS](https://pasax.web.id/docs/pasax-secure-monitor/core-architecture/threat-detection-engine/)
+> - 📱 [Device Quarantine & Resolusi Reverse Proxy](https://pasax.web.id/docs/pasax-secure-monitor/core-architecture/device-quarantine/)
+> - 🔒 [Audit Keamanan Server & Integritas Berkas](https://pasax.web.id/docs/pasax-secure-monitor/security-modules/server-security-and-webshells/)
+> - 📊 [Streaming Access Log Parser (< 15MB RAM)](https://pasax.web.id/docs/pasax-secure-monitor/security-modules/access-log-streaming/)
+> - 🌐 [Kontrak REST API & JSON Envelope](https://pasax.web.id/docs/pasax-secure-monitor/api-reference/api-overview/)
+> - 🎨 [Custom Dashboard & API Host (Tanpa Ubah Vendor)](https://pasax.web.id/docs/pasax-secure-monitor/integration-guides/custom-dashboard-dan-api-tanpa-ubah-vendor/)
+> - 🧱 [Hardening Webserver Nginx](https://pasax.web.id/docs/pasax-secure-monitor/webserver-hardening/nginx-hardened-waf/) & [Apache .htaccess](https://pasax.web.id/docs/pasax-secure-monitor/webserver-hardening/apache-htaccess-hardening/)
 
 ---
 

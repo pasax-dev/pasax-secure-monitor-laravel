@@ -50,13 +50,13 @@ export default function PrivacyPolicyModal({
                             </span>
                             <span className="text-muted-foreground">•</span>
                             <a
-                                href="https://pasax.is-a.dev"
+                                href="https://pasax.web.id"
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
                             >
                                 <Globe className="size-3.5" />
-                                pasax.is-a.dev
+                                pasax.web.id
                                 <ExternalLink className="size-3 opacity-70" />
                             </a>
                             <span className="text-muted-foreground">•</span>

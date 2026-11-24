@@ -130,7 +130,7 @@ push.sh                    # Commit + auto-tag helper (patch caps at .10, majors
 - **Pint-clean**: `./vendor/bin/pint --test` must pass. Host files edited by installer/uninstaller must also stay Pint-clean (single trailing newline, max one blank line between blocks).
 - **CHANGELOG-first**: every user-facing change gets a `CHANGELOG.md` entry before push (see `pasax-release` skill).
 - **Naming invariant**: no user-visible `security.*` / `SECURITY_*` / `SecurityMonitor` identifiers remain — only `pasax` / `PASAX_*`. Legacy names survive solely as silent fallbacks (env, config keys, table renames, class aliases). Grep before release.
-- **Docs sync**: `README.md` ↔ `documents/` ↔ `https://pasax.is-a.dev/docs` (via `docs-sync` skill) must agree on install flow, publish tags, flags, route names, and middleware aliases.
+- **Docs sync**: `README.md` ↔ `documents/` ↔ `https://pasax.web.id/docs` (via `docs-sync` skill) must agree on install flow, publish tags, flags, route names, and middleware aliases.
 
 ---
 

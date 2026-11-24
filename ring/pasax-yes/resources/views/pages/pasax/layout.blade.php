@@ -2042,7 +2042,7 @@
                     </svg>
                     <span data-sec-theme-label>{{ __('Dark mode') }}</span>
                 </button>
-                <a href="https://pasax.is-a.dev/docs/pasax-secure-monitor"
+                <a href="https://pasax.web.id/docs/pasax-secure-monitor"
                     target="_blank"
                     rel="noopener noreferrer"
                     class="sec-sidebar-version"
