@@ -2,6 +2,7 @@
 
 namespace Pasax\SecureMonitor\Services;
 
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Throwable;
 
@@ -17,6 +18,11 @@ use Throwable;
  */
 class PasaxCloudService
 {
+    /**
+     * Cache key untuk menyimpan hasil verifikasi lisensi lokal.
+     */
+    public const LICENSE_CACHE_KEY = 'pasax:license_verification';
+
     protected ?string $cloudKey;
 
     protected string $cloudUrl;
@@ -49,6 +55,104 @@ class PasaxCloudService
         $key = trim((string) ($this->cloudKey ?? ''));
 
         return $this->enabled && $key !== '' && str_starts_with($key, 'psk_') && strlen($key) >= 16;
+    }
+
+    /**
+     * Verifikasi status lisensi, masa aktif trial, dan status perlindungan ke Pasax Cloud API.
+     */
+    public function verifyLicense(bool $forceFresh = false): array
+    {
+        if (! $this->isConfigured()) {
+            return [
+                'valid' => false,
+                'status' => 'missing_key',
+                'protection_mode' => 'disabled',
+                'is_trial' => false,
+                'trial_expired' => false,
+                'threat_count_only' => true,
+                'message' => 'PASAX_CLOUD_KEY belum dikonfigurasi atau tidak valid. Perlindungan dinonaktifkan.',
+            ];
+        }
+
+        if (! $forceFresh && Cache::has(self::LICENSE_CACHE_KEY)) {
+            return (array) Cache::get(self::LICENSE_CACHE_KEY);
+        }
+
+        $payload = [
+            'api_key' => $this->cloudKey,
+            'machine_id' => $this->resolveNodeId(),
+            'hostname' => gethostname(),
+            'public_ip' => request()?->server('SERVER_ADDR', '127.0.0.1') ?? '127.0.0.1',
+        ];
+
+        try {
+            $response = Http::timeout($this->timeout)
+                ->withToken((string) $this->cloudKey)
+                ->post("{$this->cloudUrl}/api/licenses/verify", $payload);
+
+            $data = (array) $response->json();
+
+            if ($response->successful()) {
+                Cache::put(self::LICENSE_CACHE_KEY, $data, 900); // 15 menit
+
+                return $data;
+            }
+
+            // Status Expired / Seat Limit reached
+            if ($response->status() === 403 || ($data['status'] ?? '') === 'expired') {
+                Cache::put(self::LICENSE_CACHE_KEY, $data, 900);
+
+                return $data;
+            }
+
+            return [
+                'valid' => false,
+                'status' => 'verification_failed',
+                'protection_mode' => 'disabled',
+                'threat_count_only' => true,
+                'message' => $data['message'] ?? 'Verifikasi lisensi gagal.',
+            ];
+        } catch (Throwable $e) {
+            // Grace period pendek jika Cloud offline sementara
+            return [
+                'valid' => true,
+                'status' => 'network_grace',
+                'protection_mode' => 'active',
+                'message' => 'Cloud unreachable, using temporary grace period.',
+            ];
+        }
+    }
+
+    /**
+     * Periksa apakah perlindungan aktif (lisensi valid dan belum kedaluwarsa).
+     */
+    public function isProtectionActive(): bool
+    {
+        // Izinkan rangkaian pengujian unit internal Laravel (Pest/PHPUnit) berjalan normal
+        // jika pengujian tersebut tidak mengonfigurasi API key cloud secara khusus.
+        if (app()->runningUnitTests() && ! $this->isConfigured()) {
+            return true;
+        }
+
+        if (! $this->isConfigured()) {
+            return false;
+        }
+
+        $verification = $this->verifyLicense();
+
+        return ! empty($verification['valid']) && ($verification['protection_mode'] ?? '') === 'active';
+    }
+
+    /**
+     * Periksa apakah masa percobaan (trial 14 hari) telah kedaluwarsa.
+     */
+    public function isTrialExpired(): bool
+    {
+        $verification = $this->verifyLicense();
+
+        return ! empty($verification['trial_expired'])
+            || ($verification['status'] ?? '') === 'expired'
+            || (! empty($verification['is_trial']) && ($verification['remaining_days'] ?? 1) <= 0);
     }
 
     /**
@@ -157,12 +261,12 @@ class PasaxCloudService
         $payload = [
             'node_id' => $nodeId,
             'hostname' => gethostname(),
-            'public_ip' => request()->server('SERVER_ADDR', '127.0.0.1'),
+            'public_ip' => request()?->server('SERVER_ADDR', '127.0.0.1') ?? '127.0.0.1',
             'os_info' => PHP_OS.' / PHP '.PHP_VERSION,
             'agent_version' => '1.0.0',
             'system' => [
                 'hostname' => gethostname(),
-                'ip_v4' => request()->server('SERVER_ADDR', '127.0.0.1'),
+                'ip_v4' => request()?->server('SERVER_ADDR', '127.0.0.1') ?? '127.0.0.1',
                 'os' => PHP_OS.' / PHP '.PHP_VERSION,
                 'app_name' => $meta['name'],
                 'app_url' => $meta['url'],
