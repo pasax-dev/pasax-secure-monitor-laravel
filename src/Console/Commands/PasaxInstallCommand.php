@@ -29,6 +29,9 @@ class PasaxInstallCommand extends Command
     }
 
     protected $signature = 'pasax:install
+                            {--api-key= : Pasax License API Key dari Superadmin (wajib: format psk_live_...)}
+                            {--api-url= : Pasax Cloud Service Base URL (default: https://pasax-service.vercel.app)}
+                            {--skip-cloud-verify : Lewati verifikasi cloud (hanya untuk pengujian unit internal)}
                             {--force : Timpa berkas konfigurasi, migrasi, nginx, htaccess, dan halaman blokir yang sudah ada}
                             {--lang= : Bahasa wizard instalasi (id|en)}
                             {--api-only : Instalasi API-only (inti + keamanan, tanpa halaman/dashboard)}
@@ -95,6 +98,109 @@ class PasaxInstallCommand extends Command
             ),
         );
         $this->newLine();
+
+        // 0b. Validasi Wajib: Pasax License API Key & Konektivitas Internet
+        $apiKey = trim((string) ($this->option('api-key') ?? ''));
+        $apiUrl = trim((string) ($this->option('api-url') ?? config('pasax.cloud.url', 'https://pasax-service.vercel.app')));
+        if ($apiUrl === '') {
+            $apiUrl = 'https://pasax-service.vercel.app';
+        }
+
+        $skipCloudVerify = (bool) $this->option('skip-cloud-verify');
+
+        if (app()->runningUnitTests() && ! $this->option('api-key') && $apiKey === '') {
+            $skipCloudVerify = true;
+        }
+
+        if (! $skipCloudVerify) {
+            if ($apiKey === '') {
+                $apiKey = trim((string) env('PASAX_LICENSE_KEY', env('PASAX_CLOUD_KEY', env('PASAX_API_KEY', config('pasax.cloud.key', '')))));
+            }
+
+            if ($apiKey === '' && $interactive && ! $this->option('no-interaction')) {
+                $this->comment(
+                    $this->t(
+                        'Autentikasi Lisensi Pasax Security (Wajib):',
+                        'Pasax Security License Authentication (Required):',
+                    ),
+                );
+                $this->line(
+                    $this->t(
+                        'Dapatkan API Key resmi Anda dari Superadmin Pasax di https://pasax.web.id',
+                        'Get your official API Key from the Pasax Superadmin at https://pasax.web.id',
+                    ),
+                );
+                $apiKey = trim((string) $this->ask(
+                    $this->t(
+                        'Masukkan Pasax License API Key (psk_live_...)',
+                        'Enter Pasax License API Key (psk_live_...)',
+                    ),
+                ));
+            }
+
+            if ($apiKey === '') {
+                $this->newLine();
+                $this->error(
+                    $this->t(
+                        '[GAGAL] Pasax License API Key wajib disertakan untuk melakukan instalasi!',
+                        '[FAILED] Pasax License API Key is required to perform installation!',
+                    ),
+                );
+                $this->line(
+                    $this->t(
+                        '  Gunakan opsi: --api-key="psk_live_..." atau jalankan perintah secara interaktif.',
+                        '  Use option: --api-key="psk_live_..." or run the command interactively.',
+                    ),
+                );
+                $this->line(
+                    $this->t(
+                        '  Dapatkan kunci lisensi resmi di: https://pasax.web.id (Superadmin Control Plane).',
+                        '  Obtain your official license key at: https://pasax.web.id (Superadmin Control Plane).',
+                    ),
+                );
+                $this->newLine();
+
+                return self::FAILURE;
+            }
+
+            $this->comment(
+                $this->t(
+                    'Memverifikasi koneksi internet & validasi Lisensi Pasax Ecosystem...',
+                    'Verifying internet connection & validating Pasax Ecosystem license...',
+                ),
+            );
+
+            $verification = $this->verifyLicenseAndConnectivity($apiKey, $apiUrl);
+
+            if (! $verification['success']) {
+                $this->newLine();
+                $this->error($verification['message']);
+                if (! empty($verification['hint'])) {
+                    $this->line("  <fg=yellow>{$verification['hint']}</>");
+                }
+                $this->newLine();
+
+                return self::FAILURE;
+            }
+
+            $userPlan = strtoupper((string) ($verification['data']['user']['plan'] ?? 'PRO'));
+            $userName = (string) ($verification['data']['user']['name'] ?? 'Fleet Admin');
+            $licenseName = (string) ($verification['data']['license_key']['name'] ?? 'Production License');
+
+            $this->info(
+                $this->t(
+                    "  ✓ Koneksi internet aktif terverifikasi (Pasax Cloud: {$apiUrl})",
+                    "  ✓ Active internet connection verified (Pasax Cloud: {$apiUrl})",
+                ),
+            );
+            $this->info(
+                $this->t(
+                    "  ✓ Lisensi API Key valid: [{$userPlan}] {$licenseName} (Pemilik: {$userName})",
+                    "  ✓ License API Key verified: [{$userPlan}] {$licenseName} (Owner: {$userName})",
+                ),
+            );
+            $this->newLine();
+        }
 
         // 1. Pilihan cakupan: API dan Web Dashboard Blade murni selalu dipasang secara bawaan (Yes).
         //    --api-only adalah jalan pintas untuk "API ya, Web tidak".
@@ -236,7 +342,7 @@ class PasaxInstallCommand extends Command
             $this->comment(
                 'Menyematkan variabel konfigurasi dan panduan ke berkas .env...',
             );
-            $this->appendEnvironmentVariables($withDashboard);
+            $this->appendEnvironmentVariables($withDashboard, $apiKey, $apiUrl);
         }
 
         // 12. Setup AI Agent Skills (.agents/skills/pasax/SKILL.md) & AGENTS.md guidelines
@@ -595,6 +701,15 @@ class PasaxInstallCommand extends Command
             File::exists(base_path('.env')),
             $this->t('Berkas .env', '.env file'),
         ];
+
+        $sentinelSocket = (string) config('pasax.sentinel.socket', '/run/pasax/agent.sock');
+        $sentinelActive = file_exists($sentinelSocket) || file_exists('/run/pasax/sentinel.sock');
+        $checks[] = [
+            $sentinelActive,
+            $sentinelActive
+                ? $this->t("Pasax Sentinel Daemon IPC aktif ({$sentinelSocket})", "Pasax Sentinel Daemon IPC active ({$sentinelSocket})")
+                : $this->t("Pasax Sentinel IPC socket ({$sentinelSocket} belum aktif - opsional daemon host)", "Pasax Sentinel IPC socket ({$sentinelSocket} not active - optional host daemon)"),
+        ];
         $checks[] = [
             is_writable(base_path('composer.json')),
             $this->t(
@@ -722,6 +837,8 @@ class PasaxInstallCommand extends Command
      */
     protected function appendEnvironmentVariables(
         bool $withDashboard = false,
+        string $apiKey = '',
+        string $apiUrl = '',
     ): void {
         $stubPath = __DIR__.'/../../../stubs/env.stub';
         if (! File::exists($stubPath)) {
@@ -774,21 +891,31 @@ class PasaxInstallCommand extends Command
                         (string) $updated,
                     );
                     $updated = $this->ensureRotatingEnvKeys($updated);
-                    if ($updated !== $currentContent) {
-                        File::put($targetPath, $updated);
-                        $this->info(
-                            "  ✓ Berkas {$envFile} diperbarui: PASAX_DASHBOARD_ENABLED=true (blade) + URL acak sekali pakai.",
-                        );
-                    }
                 }
-                $this->line(
-                    "  ✓ Berkas {$envFile} sudah memiliki variabel konfigurasi keamanan.",
-                );
+
+                if ($envFile === '.env' && $apiKey !== '') {
+                    $updated = $this->injectLicenseKeysIntoEnvContent($updated, $apiKey, $apiUrl);
+                }
+
+                if ($updated !== $currentContent) {
+                    File::put($targetPath, $updated);
+                    $this->info(
+                        "  ✓ Berkas {$envFile} diperbarui dengan konfigurasi Pasax.",
+                    );
+                } else {
+                    $this->line(
+                        "  ✓ Berkas {$envFile} sudah memiliki variabel konfigurasi keamanan.",
+                    );
+                }
 
                 continue;
             }
 
-            File::append($targetPath, $stubContent);
+            $contentToAppend = $stubContent;
+            if ($envFile === '.env' && $apiKey !== '') {
+                $contentToAppend = $this->injectLicenseKeysIntoEnvContent($contentToAppend, $apiKey, $apiUrl);
+            }
+            File::append($targetPath, $contentToAppend);
             $this->info(
                 "  ✓ Variabel konfigurasi keamanan berhasil ditambahkan ke berkas {$envFile}.",
             );
@@ -1459,5 +1586,233 @@ MARKDOWN;
                 }
             }
         }
+    }
+
+    /**
+     * Memeriksa koneksi internet dan memvalidasi License API Key ke Pasax Cloud API.
+     *
+     * @return array{success: bool, message: string, hint?: string, data?: array}
+     */
+    protected function verifyLicenseAndConnectivity(string $apiKey, string $apiUrl): array
+    {
+        $apiUrl = rtrim($apiUrl, '/');
+
+        // 1. Cek konektivitas internet / reachability ke Cloud API (health endpoint)
+        $isOnline = false;
+        $healthUrl = $apiUrl.'/api/v1/health';
+
+        try {
+            $healthResp = $this->makeHttpRequest('GET', $healthUrl, [], [], 5);
+            if ($healthResp['status'] >= 200 && $healthResp['status'] < 500) {
+                $isOnline = true;
+            }
+        } catch (\Throwable $e) {
+            $isOnline = false;
+        }
+
+        if (! $isOnline) {
+            try {
+                $rootResp = $this->makeHttpRequest('GET', $apiUrl.'/', [], [], 5);
+                if ($rootResp['status'] >= 200 && $rootResp['status'] < 500) {
+                    $isOnline = true;
+                }
+            } catch (\Throwable $e) {
+                $isOnline = false;
+            }
+        }
+
+        if (! $isOnline) {
+            return [
+                'success' => false,
+                'message' => $this->t(
+                    "[GAGAL] Server tidak memiliki koneksi internet aktif atau tidak dapat menghubungi Pasax Cloud ({$apiUrl})!",
+                    "[FAILED] Server has no active internet connection or cannot reach Pasax Cloud ({$apiUrl})!"
+                ),
+                'hint' => $this->t(
+                    'Instalasi Pasax Security (Bulwark) mewajibkan koneksi internet aktif untuk menghubungkan ke pasax-service, pasax-sentinel, dan pasax-web control plane.',
+                    'Pasax Security (Bulwark) installation requires an active internet connection to connect with pasax-service, pasax-sentinel, and pasax-web control plane.'
+                ),
+            ];
+        }
+
+        // 2. Validasi License API Key
+        $verifyUrl = $apiUrl.'/api/v1/auth/verify';
+        try {
+            $verifyResp = $this->makeHttpRequest('POST', $verifyUrl, [
+                'api_key' => $apiKey,
+                'license_key' => $apiKey,
+            ], [
+                'Authorization' => 'Bearer '.$apiKey,
+                'Content-Type' => 'application/json',
+                'Accept' => 'application/json',
+            ], 8);
+
+            $body = json_decode((string) $verifyResp['body'], true) ?? [];
+
+            if ($verifyResp['status'] === 200 && (! empty($body['valid']) || ($body['status'] ?? '') === 'success')) {
+                return [
+                    'success' => true,
+                    'message' => 'License API Key verified',
+                    'data' => $body['data'] ?? [],
+                ];
+            }
+
+            if ($verifyResp['status'] === 401 || $verifyResp['status'] === 403) {
+                return [
+                    'success' => false,
+                    'message' => $this->t(
+                        '[GAGAL] Pasax License API Key tidak valid atau telah dinonaktifkan oleh Administrator!',
+                        '[FAILED] Pasax License API Key is invalid or has been deactivated by Administrator!'
+                    ),
+                    'hint' => $this->t(
+                        'Pesan server: '.($body['message'] ?? 'Unauthorized').'. Silakan periksa kembali API Key Anda di dashboard Superadmin (https://pasax.web.id).',
+                        'Server message: '.($body['message'] ?? 'Unauthorized').'. Please verify your API Key in the Superadmin dashboard (https://pasax.web.id).'
+                    ),
+                ];
+            }
+
+            return [
+                'success' => false,
+                'message' => $this->t(
+                    '[GAGAL] Verifikasi lisensi gagal: '.($body['message'] ?? 'Status HTTP '.$verifyResp['status']),
+                    '[FAILED] License verification failed: '.($body['message'] ?? 'HTTP status '.$verifyResp['status'])
+                ),
+                'hint' => $this->t(
+                    'Pastikan server memiliki akses keluar (outgoing HTTP/HTTPS) ke '.$apiUrl,
+                    'Make sure the server allows outgoing HTTP/HTTPS connections to '.$apiUrl
+                ),
+            ];
+        } catch (\Throwable $e) {
+            return [
+                'success' => false,
+                'message' => $this->t(
+                    '[GAGAL] Terjadi kesalahan jaringan saat memvalidasi lisensi: '.$e->getMessage(),
+                    '[FAILED] Network error during license validation: '.$e->getMessage()
+                ),
+                'hint' => $this->t(
+                    'Periksa koneksi internet server dan DNS resolution ke '.$apiUrl,
+                    'Check server internet connectivity and DNS resolution to '.$apiUrl
+                ),
+            ];
+        }
+    }
+
+    /**
+     * Helper request HTTP tangguh (memakai curl jika ada, fallback ke file_get_contents).
+     *
+     * @param  array<string, mixed>  $payload
+     * @param  array<string, string>  $headers
+     * @return array{status: int, body: string}
+     */
+    protected function makeHttpRequest(string $method, string $url, array $payload = [], array $headers = [], int $timeout = 6): array
+    {
+        if (function_exists('curl_init')) {
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+
+            $formattedHeaders = [];
+            foreach ($headers as $k => $v) {
+                $formattedHeaders[] = "{$k}: {$v}";
+            }
+
+            if (strtoupper($method) === 'POST') {
+                curl_setopt($ch, CURLOPT_POST, true);
+                $json = json_encode($payload);
+                curl_setopt($ch, CURLOPT_POSTFIELDS, $json);
+                if (! isset($headers['Content-Type'])) {
+                    $formattedHeaders[] = 'Content-Type: application/json';
+                }
+            }
+
+            if (! empty($formattedHeaders)) {
+                curl_setopt($ch, CURLOPT_HTTPHEADER, $formattedHeaders);
+            }
+
+            $body = curl_exec($ch);
+            $statusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $error = curl_error($ch);
+            curl_close($ch);
+
+            if ($body === false && $statusCode === 0) {
+                throw new \RuntimeException($error ?: 'Connection failed');
+            }
+
+            return ['status' => (int) $statusCode, 'body' => (string) $body];
+        }
+
+        $contextHeaders = [];
+        foreach ($headers as $k => $v) {
+            $contextHeaders[] = "{$k}: {$v}";
+        }
+
+        $opts = [
+            'http' => [
+                'method' => strtoupper($method),
+                'timeout' => $timeout,
+                'ignore_errors' => true,
+            ],
+            'ssl' => [
+                'verify_peer' => true,
+                'verify_peer_name' => true,
+            ],
+        ];
+
+        if (strtoupper($method) === 'POST') {
+            $json = json_encode($payload);
+            $opts['http']['content'] = $json;
+            $contextHeaders[] = 'Content-Type: application/json';
+        }
+
+        if (! empty($contextHeaders)) {
+            $opts['http']['header'] = implode("\r\n", $contextHeaders);
+        }
+
+        $context = stream_context_create($opts);
+        $body = @file_get_contents($url, false, $context);
+
+        $status = 0;
+        if (isset($http_response_header) && ! empty($http_response_header)) {
+            if (preg_match('/HTTP\/\S+\s+(\d+)/', $http_response_header[0], $m)) {
+                $status = (int) $m[1];
+            }
+        }
+
+        if ($body === false && $status === 0) {
+            throw new \RuntimeException('Failed to open stream to '.$url);
+        }
+
+        return ['status' => $status, 'body' => (string) ($body ?: '')];
+    }
+
+    /**
+     * Menyuntikkan kunci lisensi dan URL Cloud API ke dalam konten .env.
+     */
+    protected function injectLicenseKeysIntoEnvContent(string $content, string $apiKey, string $apiUrl): string
+    {
+        if (str_contains($content, 'PASAX_LICENSE_KEY=')) {
+            $content = (string) preg_replace('/PASAX_LICENSE_KEY=[^\r\n]*/', "PASAX_LICENSE_KEY={$apiKey}", $content);
+        } else {
+            $content = rtrim($content)."\nPASAX_LICENSE_KEY={$apiKey}\n";
+        }
+
+        if (str_contains($content, 'PASAX_CLOUD_KEY=')) {
+            $content = (string) preg_replace('/PASAX_CLOUD_KEY=[^\r\n]*/', "PASAX_CLOUD_KEY={$apiKey}", $content);
+        } else {
+            $content = rtrim($content)."\nPASAX_CLOUD_KEY={$apiKey}\n";
+        }
+
+        if ($apiUrl !== '') {
+            if (str_contains($content, 'PASAX_API_URL=')) {
+                $content = (string) preg_replace('/PASAX_API_URL=[^\r\n]*/', "PASAX_API_URL={$apiUrl}", $content);
+            } else {
+                $content = rtrim($content)."\nPASAX_API_URL={$apiUrl}\n";
+            }
+        }
+
+        return $content;
     }
 }

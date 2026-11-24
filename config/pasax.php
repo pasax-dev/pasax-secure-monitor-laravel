@@ -1122,8 +1122,11 @@ return [
     */
     'cloud' => [
         'enabled' => (bool) env('PASAX_CLOUD_ENABLED', true),
-        'key' => env('PASAX_CLOUD_KEY'),
-        'url' => rtrim(env('PASAX_CLOUD_URL', 'https://pasax-service.vercel.app'), '/'),
+        'license_key' => env('PASAX_LICENSE_KEY', env('PASAX_CLOUD_KEY', env('PASAX_API_KEY'))),
+        'key' => env('PASAX_LICENSE_KEY', env('PASAX_CLOUD_KEY', env('PASAX_API_KEY'))),
+        'api_key' => env('PASAX_LICENSE_KEY', env('PASAX_CLOUD_KEY', env('PASAX_API_KEY'))),
+        'url' => rtrim(env('PASAX_API_URL', env('PASAX_CLOUD_URL', 'https://pasax-service.vercel.app')), '/'),
+        'api_url' => rtrim(env('PASAX_API_URL', env('PASAX_CLOUD_URL', 'https://pasax-service.vercel.app')), '/'),
         'timeout' => (float) env('PASAX_CLOUD_TIMEOUT', 3.0),
         'sync_threats' => (bool) env('PASAX_CLOUD_SYNC_THREATS', true),
         'heartbeat' => (bool) env('PASAX_CLOUD_HEARTBEAT', true),
