@@ -1,0 +1,38 @@
+{
+  "date": "2026-11-25",
+  "type": "feature",
+  "project": {
+    "name": "Pasak Security Monitor Laravel Packagist",
+    "url": "https://github.com/pasak-dev/pasak-secure-monitor-laravel"
+  },
+  "title": {
+    "id": "Integrasi Verifikasi Lisensi Ekosistem, Mode Evaluasi Bertingkat, dan Format Telemetri Rapi",
+    "en": "Ecosystem License Verification Integration, Tiered Evaluation Mode, and Streamlined Threat Telemetry"
+  },
+  "body": {
+    "id": "Menghadirkan pembaruan sistem keamanan aplikasi web dengan integrasi verifikasi lisensi resmi ke ekosistem terpusat saat inisialisasi, mode pengawasan bertingkat yang menyesuaikan dengan status uji coba 14 hari atau masa tenggang, serta penyempurnaan format pelaporan status blokir ancaman pada antarmuka baris perintah lokal.",
+    "en": "Introduced web application security updates featuring centralized license verification during initial onboarding, tiered defense modes adapting to 14-day evaluation periods or grace status, and streamlined formatting of active threat blocking entries within local command interfaces."
+  },
+  "items": [
+    {
+      "type": "new",
+      "id": "Verifikasi Lisensi Resmi Terpadu: Alur inisialisasi awal kini secara otomatis memvalidasi keaslian kunci lisensi ke gerbang ekosistem sebelum mengaktifkan dasbor dan perlindungan aplikasi web.",
+      "en": "Integrated License Verification: Initial setup workflows now automatically authenticate license credentials against the ecosystem gateway before activating dashboards and web defenses."
+    },
+    {
+      "type": "new",
+      "id": "Mode Pertahanan Adaptif Masa Evaluasi: Mendukung transisi otomatis dari perlindungan aktif penuh selama masa uji coba 14 hari menuju mode pengawasan pasif saat masa evaluasi berakhir tanpa pemutusan sepihak.",
+      "en": "Adaptive Defense Tiering: Smooth transition from full active defense during the 14-day evaluation window to non-intrusive passive telemetry monitoring when evaluation concludes."
+    },
+    {
+      "type": "improvement",
+      "id": "Penyempurnaan Visualisasi Status Pemblokiran: Tampilan daftar alamat penyerang yang sedang diblokir pada perintah diagnostik disajikan dengan format yang bersih, rapi, dan mudah dipahami.",
+      "en": "Refined Threat Status Output: Active attacker drop summaries within local diagnostic utilities are rendered in a clean, legible tabular format."
+    },
+    {
+      "type": "improvement",
+      "id": "Validasi Operasional Penuh di Lingkungan Produksi: Paket perlindungan berhasil diuji dan diverifikasi mengamankan katalog produk secara menyeluruh dari berbagai simulasi serangan siber nyata.",
+      "en": "Full Production Environment Validation: Confirmed comprehensive protection securing live web catalog operations against extensive real-world intrusion simulations."
+    }
+  ]
+}
