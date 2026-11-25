@@ -37,7 +37,7 @@ beforeEach(function () use (&$backupTempDir) {
         '--force' => true,
     ])->assertSuccessful();
 
-    PasaxLog::create([
+    PasaxLog::query()->create([
         'ip_address' => '203.0.113.77',
         'event_type' => 'sqli',
         'threat_level' => 'critical',
@@ -47,7 +47,7 @@ beforeEach(function () use (&$backupTempDir) {
         'evidence' => 'SQLi backup verification row',
     ]);
 
-    PasaxBlockedIp::create([
+    PasaxBlockedIp::query()->create([
         'ip_address' => '203.0.113.77',
         'reason' => 'Snapshot check block',
         'is_active' => true,

@@ -21,7 +21,7 @@ class PasaxPurgeInjectedDataCommand extends Command
                             {--marker=* : Marker spesifik yang dicari, mis. --marker=wne (boleh diulang)}
                             {--model=* : Batasi ke model tertentu}';
 
-    protected $description = "Temukan dan hapus data hasil injeksi (payload pentest) di database";
+    protected $description = 'Temukan dan hapus data hasil injeksi (payload pentest) di database';
 
     /**
      * Default injection markers when --marker is not supplied.
@@ -29,52 +29,52 @@ class PasaxPurgeInjectedDataCommand extends Command
      * @var string[]
      */
     protected array $defaultMarkers = [
-        "..%2f",
-        "../",
-        "..\\",
-        "%00",
+        '..%2f',
+        '../',
+        '..\\',
+        '%00',
         '\0',
-        "<?php",
-        "<?=",
-        "<script",
-        "javascript:",
-        "onerror=",
-        "onload=",
-        "{{",
-        "}}",
+        '<?php',
+        '<?=',
+        '<script',
+        'javascript:',
+        'onerror=',
+        'onload=',
+        '{{',
+        '}}',
         '${',
-        "<%=",
-        "union select",
-        "etc/passwd",
-        "information_schema",
-        ".htaccess",
-        ".env",
-        "ssti",
-        "phpinfo",
-        "wne",
-        "c99",
-        "r57",
-        "shell.php",
+        '<%=',
+        'union select',
+        'etc/passwd',
+        'information_schema',
+        '.htaccess',
+        '.env',
+        'ssti',
+        'phpinfo',
+        'wne',
+        'c99',
+        'r57',
+        'shell.php',
     ];
 
     public function handle(): int
     {
-        $force = (bool) $this->option("force");
-        $markers = array_filter((array) $this->option("marker"));
+        $force = (bool) $this->option('force');
+        $markers = array_filter((array) $this->option('marker'));
         $markers = $markers === [] ? $this->defaultMarkers : $markers;
 
         // Targets can be defined in config('pasax.purge_targets')
-        $allTargets = (array) config("pasax.purge_targets", []);
+        $allTargets = (array) config('pasax.purge_targets', []);
 
         // Filter only targets whose models exist
         $validTargets = [];
         foreach ($allTargets as $label => $target) {
-            if (isset($target["model"]) && class_exists($target["model"])) {
+            if (isset($target['model']) && class_exists($target['model'])) {
                 $validTargets[$label] = $target;
             }
         }
 
-        $only = array_filter((array) $this->option("model"));
+        $only = array_filter((array) $this->option('model'));
         $targets =
             $only === []
                 ? $validTargets
@@ -85,21 +85,21 @@ class PasaxPurgeInjectedDataCommand extends Command
                 'Tidak ada target model yang dikonfigurasi di config("pasax.purge_targets").',
             );
             $this->line(
-                "Tambahkan target pembersihan pada konfigurasi Anda, contoh:",
+                'Tambahkan target pembersihan pada konfigurasi Anda, contoh:',
             );
             $this->line('  "purge_targets" => [');
             $this->line(
                 '      "posts" => ["model" => \App\Models\Post::class, "columns" => ["title", "content"]],',
             );
-            $this->line("  ]");
+            $this->line('  ]');
 
             return self::SUCCESS;
         }
 
         $this->info(
             $force
-                ? "Mode HAPUS dijalankan."
-                : "Mode pratinjau (dry-run). Tambahkan --force untuk menghapus.",
+                ? 'Mode HAPUS dijalankan.'
+                : 'Mode pratinjau (dry-run). Tambahkan --force untuk menghapus.',
         );
         $this->newLine();
 
@@ -108,22 +108,21 @@ class PasaxPurgeInjectedDataCommand extends Command
 
         foreach ($targets as $label => $target) {
             /** @var class-string<Model> $class */
-            $class = $target["model"];
-            $columns = (array) ($target["columns"] ?? []);
+            $class = $target['model'];
+            $columns = (array) ($target['columns'] ?? []);
 
             if (empty($columns)) {
                 continue;
             }
 
-            $query = $class
-                ::query()
+            $query = $class::query()
                 ->where(function ($query) use ($columns, $markers) {
                     foreach ($columns as $column) {
                         foreach ($markers as $marker) {
                             $query->orWhere(
                                 $column,
-                                "like",
-                                "%" . $this->escapeLike($marker) . "%",
+                                'like',
+                                '%'.$this->escapeLike($marker).'%',
                             );
                         }
                     }
@@ -144,15 +143,14 @@ class PasaxPurgeInjectedDataCommand extends Command
                 $this->line($this->describe($row, $columns, $markers));
             }
 
-            if (!$force) {
+            if (! $force) {
                 continue;
             }
 
             try {
-                new $class()->getConnection()->transaction(
-                    fn() => $class
-                        ::query()
-                        ->whereIn("id", $rows->pluck("id")->all())
+                (new $class)->getConnection()->transaction(
+                    fn () => $class::query()
+                        ->whereIn('id', $rows->pluck('id')->all())
                         ->delete(),
                 );
 
@@ -167,7 +165,7 @@ class PasaxPurgeInjectedDataCommand extends Command
         $this->newLine();
 
         if ($totalFound === 0) {
-            $this->info("Tidak ada data injeksi yang ditemukan.");
+            $this->info('Tidak ada data injeksi yang ditemukan.');
 
             return self::SUCCESS;
         }
@@ -196,33 +194,33 @@ class PasaxPurgeInjectedDataCommand extends Command
         foreach ($columns as $column) {
             $value = $row->getAttribute($column);
 
-            if (!is_string($value) || $value === "") {
+            if (! is_string($value) || $value === '') {
                 continue;
             }
 
             foreach ($markers as $marker) {
                 if (stripos($value, $marker) !== false) {
                     return sprintf(
-                        "  #%s → %s.%s = %s",
+                        '  #%s → %s.%s = %s',
                         $row->getKey(),
                         class_basename($row),
                         $column,
                         mb_strimwidth(
-                            str_replace(["\r", "\n"], " ", $value),
+                            str_replace(["\r", "\n"], ' ', $value),
                             0,
                             90,
-                            "…",
+                            '…',
                         ),
                     );
                 }
             }
         }
 
-        return "  #" . $row->getKey() . " → " . class_basename($row);
+        return '  #'.$row->getKey().' → '.class_basename($row);
     }
 
     protected function escapeLike(string $value): string
     {
-        return str_replace(["\\", "%", "_"], ["\\\\", "\%", "\_"], $value);
+        return str_replace(['\\', '%', '_'], ['\\\\', "\%", "\_"], $value);
     }
 }

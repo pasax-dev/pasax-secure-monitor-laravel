@@ -40,7 +40,7 @@ class PasaxTableResolver
 
             if ($configured === $prefixed) {
                 if (
-                    !$schema->hasTable($prefixed) &&
+                    ! $schema->hasTable($prefixed) &&
                     $schema->hasTable($legacy)
                 ) {
                     return self::$resolvedTables[$key] = $legacy;
@@ -51,7 +51,7 @@ class PasaxTableResolver
 
             if ($configured === $legacy) {
                 if (
-                    !$schema->hasTable($legacy) &&
+                    ! $schema->hasTable($legacy) &&
                     $schema->hasTable($prefixed)
                 ) {
                     return self::$resolvedTables[$key] = $prefixed;

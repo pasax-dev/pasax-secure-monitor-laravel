@@ -19,33 +19,33 @@ use RuntimeException;
  */
 class PasaxDashboardSecret
 {
-    public const ENV_KEY = "PASAX_DASHBOARD_SECRET";
+    public const ENV_KEY = 'PASAX_DASHBOARD_SECRET';
 
-    public const USERNAME_ENV_KEY = "PASAX_DASHBOARD_USERNAME";
+    public const USERNAME_ENV_KEY = 'PASAX_DASHBOARD_USERNAME';
 
-    public const PASSWORD_ENV_KEY = "PASAX_DASHBOARD_PASSWORD";
+    public const PASSWORD_ENV_KEY = 'PASAX_DASHBOARD_PASSWORD';
 
-    public const OWNER_EMAIL_ENV_KEY = "PASAX_OWNER_EMAIL";
+    public const OWNER_EMAIL_ENV_KEY = 'PASAX_OWNER_EMAIL';
 
-    public const OWNER_USERNAME_ENV_KEY = "PASAX_OWNER_USERNAME";
+    public const OWNER_USERNAME_ENV_KEY = 'PASAX_OWNER_USERNAME';
 
-    public const PASSWORDLESS_OWNER_ENV_KEY = "PASAX_DASHBOARD_PASSWORDLESS_OWNER";
+    public const PASSWORDLESS_OWNER_ENV_KEY = 'PASAX_DASHBOARD_PASSWORDLESS_OWNER';
 
-    public const DEFAULT_USERNAME = "admin";
+    public const DEFAULT_USERNAME = 'admin';
 
-    public const DEFAULT_PASSWORD = "Admin";
+    public const DEFAULT_PASSWORD = 'Admin';
 
-    public const DB_PASSWORD_HASH_KEY = "dashboard_password_hash";
+    public const DB_PASSWORD_HASH_KEY = 'dashboard_password_hash';
 
-    public const DB_USERNAME_KEY = "dashboard_username";
+    public const DB_USERNAME_KEY = 'dashboard_username';
 
-    public const DB_OWNER_EMAIL_KEY = "pasax_owner_email";
+    public const DB_OWNER_EMAIL_KEY = 'pasax_owner_email';
 
-    public const DB_OWNER_USERNAME_KEY = "pasax_owner_username";
+    public const DB_OWNER_USERNAME_KEY = 'pasax_owner_username';
 
-    public const DB_OWNER_NAME_KEY = "pasax_owner_name";
+    public const DB_OWNER_NAME_KEY = 'pasax_owner_name';
 
-    public const DB_OWNER_PLAN_KEY = "pasax_owner_plan";
+    public const DB_OWNER_PLAN_KEY = 'pasax_owner_plan';
 
     public const LENGTH = 48;
 
@@ -104,20 +104,20 @@ class PasaxDashboardSecret
         string $path,
         string $key,
     ): ?string {
-        if (!File::exists($path)) {
+        if (! File::exists($path)) {
             return null;
         }
 
         $content = File::get($path);
-        $pattern = "/^" . preg_quote($key, "/") . '=(.*)$/m';
+        $pattern = '/^'.preg_quote($key, '/').'=(.*)$/m';
 
         if (preg_match($pattern, $content, $matches) !== 1) {
             return null;
         }
 
-        $value = self::normalize((string) ($matches[1] ?? ""));
+        $value = self::normalize((string) ($matches[1] ?? ''));
 
-        return $value === "" ? null : $value;
+        return $value === '' ? null : $value;
     }
 
     /**
@@ -127,42 +127,42 @@ class PasaxDashboardSecret
         string $path,
         string $default = self::DEFAULT_USERNAME,
     ): bool {
-        if (!File::exists($path)) {
+        if (! File::exists($path)) {
             return false;
         }
 
         $content = File::get($path);
-        $pattern = "/^" . preg_quote(self::USERNAME_ENV_KEY, "/") . '=(.*)$/m';
+        $pattern = '/^'.preg_quote(self::USERNAME_ENV_KEY, '/').'=(.*)$/m';
 
         if (preg_match($pattern, $content) === 1) {
             return false;
         }
 
         $passwordPattern =
-            "/^(" . preg_quote(self::PASSWORD_ENV_KEY, "/") . '=.*)$/m';
-        $secretPattern = "/^(" . preg_quote(self::ENV_KEY, "/") . '=.*)$/m';
+            '/^('.preg_quote(self::PASSWORD_ENV_KEY, '/').'=.*)$/m';
+        $secretPattern = '/^('.preg_quote(self::ENV_KEY, '/').'=.*)$/m';
 
         if (preg_match($passwordPattern, $content) === 1) {
             $content = (string) preg_replace(
                 $passwordPattern,
-                self::USERNAME_ENV_KEY . "=" . $default . "\n$1",
+                self::USERNAME_ENV_KEY.'='.$default."\n$1",
                 $content,
                 1,
             );
         } elseif (preg_match($secretPattern, $content) === 1) {
             $content = (string) preg_replace(
                 $secretPattern,
-                self::USERNAME_ENV_KEY . "=" . $default . "\n$1",
+                self::USERNAME_ENV_KEY.'='.$default."\n$1",
                 $content,
                 1,
             );
         } else {
             $content =
-                rtrim($content) .
-                "\n" .
-                self::USERNAME_ENV_KEY .
-                "=" .
-                $default .
+                rtrim($content).
+                "\n".
+                self::USERNAME_ENV_KEY.
+                '='.
+                $default.
                 "\n";
         }
 
@@ -178,32 +178,32 @@ class PasaxDashboardSecret
         string $path,
         string $default = self::DEFAULT_PASSWORD,
     ): bool {
-        if (!File::exists($path)) {
+        if (! File::exists($path)) {
             return false;
         }
 
         $content = File::get($path);
-        $pattern = "/^" . preg_quote(self::PASSWORD_ENV_KEY, "/") . '=(.*)$/m';
+        $pattern = '/^'.preg_quote(self::PASSWORD_ENV_KEY, '/').'=(.*)$/m';
 
         if (preg_match($pattern, $content) === 1) {
             return false;
         }
 
-        $secretPattern = "/^(" . preg_quote(self::ENV_KEY, "/") . '=.*)$/m';
+        $secretPattern = '/^('.preg_quote(self::ENV_KEY, '/').'=.*)$/m';
         if (preg_match($secretPattern, $content) === 1) {
             $content = (string) preg_replace(
                 $secretPattern,
-                self::PASSWORD_ENV_KEY . "=" . $default . "\n$1",
+                self::PASSWORD_ENV_KEY.'='.$default."\n$1",
                 $content,
                 1,
             );
         } else {
             $content =
-                rtrim($content) .
-                "\n" .
-                self::PASSWORD_ENV_KEY .
-                "=" .
-                $default .
+                rtrim($content).
+                "\n".
+                self::PASSWORD_ENV_KEY.
+                '='.
+                $default.
                 "\n";
         }
 
@@ -228,13 +228,13 @@ class PasaxDashboardSecret
         bool $generate = true,
     ): array {
         $result = [
-            "exists" => File::exists($path),
-            "changed" => false,
-            "generated" => false,
-            "secret" => null,
+            'exists' => File::exists($path),
+            'changed' => false,
+            'generated' => false,
+            'secret' => null,
         ];
 
-        if (!$result["exists"]) {
+        if (! $result['exists']) {
             return $result;
         }
 
@@ -243,17 +243,17 @@ class PasaxDashboardSecret
         self::ensurePasswordInEnvFile($path);
 
         $content = File::get($path);
-        $pattern = "/^" . preg_quote(self::ENV_KEY, "/") . '=(.*)$/m';
+        $pattern = '/^'.preg_quote(self::ENV_KEY, '/').'=(.*)$/m';
         $hasLine = preg_match($pattern, $content, $matches) === 1;
         $current = $hasLine
-            ? self::normalize((string) ($matches[1] ?? ""))
+            ? self::normalize((string) ($matches[1] ?? ''))
             : null;
-        if ($current === "") {
+        if ($current === '') {
             $current = null;
         }
-        $result["secret"] = $current;
+        $result['secret'] = $current;
 
-        $needsValue = $force || !$hasLine || $current === null;
+        $needsValue = $force || ! $hasLine || $current === null;
 
         if ($generate && $needsValue) {
             $secret = self::generate();
@@ -261,53 +261,53 @@ class PasaxDashboardSecret
             if ($hasLine) {
                 $content = (string) preg_replace(
                     $pattern,
-                    self::ENV_KEY . "=" . $secret,
+                    self::ENV_KEY.'='.$secret,
                     $content,
                     1,
                 );
             } else {
                 $content =
-                    rtrim($content) .
-                    "\n" .
-                    self::ENV_KEY .
-                    "=" .
-                    $secret .
+                    rtrim($content).
+                    "\n".
+                    self::ENV_KEY.
+                    '='.
+                    $secret.
                     "\n";
             }
 
             File::put($path, $content);
 
-            $result["changed"] = true;
-            $result["generated"] = true;
-            $result["secret"] = $secret;
+            $result['changed'] = true;
+            $result['generated'] = true;
+            $result['secret'] = $secret;
 
             return $result;
         }
 
-        if (!$hasLine) {
-            $content = rtrim($content) . "\n" . self::ENV_KEY . "=" . "\n";
+        if (! $hasLine) {
+            $content = rtrim($content)."\n".self::ENV_KEY.'='."\n";
             File::put($path, $content);
-            $result["changed"] = true;
+            $result['changed'] = true;
 
             return $result;
         }
 
-        if (!$generate) {
+        if (! $generate) {
             // Contoh konfigurasi tidak boleh menyimpan rahasia nyata, termasuk
             // nilai warisan instalasi lama yang mungkin sudah ter-commit.
             $content = (string) preg_replace(
                 $pattern,
-                self::ENV_KEY . "=",
+                self::ENV_KEY.'=',
                 $content,
                 1,
             );
 
             if ($content !== File::get($path)) {
                 File::put($path, $content);
-                $result["changed"] = true;
+                $result['changed'] = true;
             }
 
-            $result["secret"] = null;
+            $result['secret'] = null;
 
             return $result;
         }
@@ -323,35 +323,35 @@ class PasaxDashboardSecret
     public static function deriveUsernameFromUserData(array $user): string
     {
         $rawUsername = trim(
-            (string) ($user["username"] ?? ($user["handle"] ?? "")),
+            (string) ($user['username'] ?? ($user['handle'] ?? '')),
         );
-        if ($rawUsername !== "") {
+        if ($rawUsername !== '') {
             $clean = strtolower(
-                (string) preg_replace("/[^a-zA-Z0-9._-]/", "", $rawUsername),
+                (string) preg_replace('/[^a-zA-Z0-9._-]/', '', $rawUsername),
             );
-            if ($clean !== "") {
+            if ($clean !== '') {
                 return $clean;
             }
         }
 
-        $email = trim((string) ($user["email"] ?? ""));
-        if ($email !== "" && str_contains($email, "@")) {
-            $local = strtolower(Str::before($email, "@"));
-            $clean = (string) preg_replace("/[^a-z0-9._-]/", "", $local);
-            if ($clean !== "") {
+        $email = trim((string) ($user['email'] ?? ''));
+        if ($email !== '' && str_contains($email, '@')) {
+            $local = strtolower(Str::before($email, '@'));
+            $clean = (string) preg_replace('/[^a-z0-9._-]/', '', $local);
+            if ($clean !== '') {
                 return $clean;
             }
         }
 
-        $name = trim((string) ($user["name"] ?? ""));
-        if ($name !== "") {
-            $slug = Str::slug($name, ".");
-            if ($slug !== "") {
+        $name = trim((string) ($user['name'] ?? ''));
+        if ($name !== '') {
+            $slug = Str::slug($name, '.');
+            if ($slug !== '') {
                 return $slug;
             }
         }
 
-        return "";
+        return '';
     }
 
     /**
@@ -362,29 +362,29 @@ class PasaxDashboardSecret
      */
     public static function storeOwnerIdentityInDatabase(array $user): array
     {
-        $email = strtolower(trim((string) ($user["email"] ?? "")));
+        $email = strtolower(trim((string) ($user['email'] ?? '')));
         $username = self::deriveUsernameFromUserData($user);
-        $name = trim((string) ($user["name"] ?? ""));
-        $plan = strtoupper(trim((string) ($user["plan"] ?? "")));
+        $name = trim((string) ($user['name'] ?? ''));
+        $plan = strtoupper(trim((string) ($user['plan'] ?? '')));
 
         $pairs = [
-            self::DB_OWNER_EMAIL_KEY => $email !== "" ? $email : null,
-            self::DB_OWNER_USERNAME_KEY => $username !== "" ? $username : null,
-            self::DB_OWNER_NAME_KEY => $name !== "" ? $name : null,
-            self::DB_OWNER_PLAN_KEY => $plan !== "" ? $plan : null,
+            self::DB_OWNER_EMAIL_KEY => $email !== '' ? $email : null,
+            self::DB_OWNER_USERNAME_KEY => $username !== '' ? $username : null,
+            self::DB_OWNER_NAME_KEY => $name !== '' ? $name : null,
+            self::DB_OWNER_PLAN_KEY => $plan !== '' ? $plan : null,
         ];
 
         try {
             if (
                 PasaxDatabase::schema()->hasTable(
-                    new PasaxSetting()->getTable(),
+                    (new PasaxSetting)->getTable(),
                 )
             ) {
                 foreach ($pairs as $key => $value) {
                     if ($value !== null) {
                         PasaxSetting::query()->updateOrCreate(
-                            ["key" => $key],
-                            ["value" => $value],
+                            ['key' => $key],
+                            ['value' => $value],
                         );
                     }
                 }
@@ -394,10 +394,10 @@ class PasaxDashboardSecret
         }
 
         return [
-            "email" => $pairs[self::DB_OWNER_EMAIL_KEY],
-            "username" => $pairs[self::DB_OWNER_USERNAME_KEY],
-            "name" => $pairs[self::DB_OWNER_NAME_KEY],
-            "plan" => $pairs[self::DB_OWNER_PLAN_KEY],
+            'email' => $pairs[self::DB_OWNER_EMAIL_KEY],
+            'username' => $pairs[self::DB_OWNER_USERNAME_KEY],
+            'name' => $pairs[self::DB_OWNER_NAME_KEY],
+            'plan' => $pairs[self::DB_OWNER_PLAN_KEY],
         ];
     }
 
@@ -408,17 +408,17 @@ class PasaxDashboardSecret
      */
     public static function resolveOwnerIdentity(): array
     {
-        $email = "";
-        $username = "";
-        $name = "";
-        $plan = "";
+        $email = '';
+        $username = '';
+        $name = '';
+        $plan = '';
 
         try {
             $email = trim(
-                (string) config("pasax.dashboard.auth.owner_email", ""),
+                (string) config('pasax.dashboard.auth.owner_email', ''),
             );
             $username = trim(
-                (string) config("pasax.dashboard.auth.owner_username", ""),
+                (string) config('pasax.dashboard.auth.owner_username', ''),
             );
         } catch (\Throwable) {
         }
@@ -426,36 +426,36 @@ class PasaxDashboardSecret
         try {
             if (
                 PasaxDatabase::schema()->hasTable(
-                    new PasaxSetting()->getTable(),
+                    (new PasaxSetting)->getTable(),
                 )
             ) {
                 $stored = PasaxSetting::query()
-                    ->whereIn("key", [
+                    ->whereIn('key', [
                         self::DB_OWNER_EMAIL_KEY,
                         self::DB_OWNER_USERNAME_KEY,
                         self::DB_OWNER_NAME_KEY,
                         self::DB_OWNER_PLAN_KEY,
                     ])
-                    ->pluck("value", "key");
+                    ->pluck('value', 'key');
 
                 if (
-                    $email === "" &&
-                    !empty($stored[self::DB_OWNER_EMAIL_KEY])
+                    $email === '' &&
+                    ! empty($stored[self::DB_OWNER_EMAIL_KEY])
                 ) {
                     $email = trim((string) $stored[self::DB_OWNER_EMAIL_KEY]);
                 }
                 if (
-                    $username === "" &&
-                    !empty($stored[self::DB_OWNER_USERNAME_KEY])
+                    $username === '' &&
+                    ! empty($stored[self::DB_OWNER_USERNAME_KEY])
                 ) {
                     $username = trim(
                         (string) $stored[self::DB_OWNER_USERNAME_KEY],
                     );
                 }
-                if (!empty($stored[self::DB_OWNER_NAME_KEY])) {
+                if (! empty($stored[self::DB_OWNER_NAME_KEY])) {
                     $name = trim((string) $stored[self::DB_OWNER_NAME_KEY]);
                 }
-                if (!empty($stored[self::DB_OWNER_PLAN_KEY])) {
+                if (! empty($stored[self::DB_OWNER_PLAN_KEY])) {
                     $plan = strtoupper(
                         trim((string) $stored[self::DB_OWNER_PLAN_KEY]),
                     );
@@ -464,28 +464,28 @@ class PasaxDashboardSecret
         } catch (\Throwable) {
         }
 
-        $envPath = base_path(".env");
-        if ($email === "") {
-            $email = (string) (self::readOwnerEmailFromEnvFile($envPath) ?? "");
+        $envPath = base_path('.env');
+        if ($email === '') {
+            $email = (string) (self::readOwnerEmailFromEnvFile($envPath) ?? '');
         }
-        if ($username === "") {
+        if ($username === '') {
             $username =
-                (string) (self::readOwnerUsernameFromEnvFile($envPath) ?? "");
+                (string) (self::readOwnerUsernameFromEnvFile($envPath) ?? '');
         }
 
-        if ($username === "" && $email !== "") {
-            $username = self::deriveUsernameFromUserData(["email" => $email]);
+        if ($username === '' && $email !== '') {
+            $username = self::deriveUsernameFromUserData(['email' => $email]);
         }
 
-        $emailVal = $email !== "" ? strtolower($email) : null;
-        $usernameVal = $username !== "" ? strtolower($username) : null;
+        $emailVal = $email !== '' ? strtolower($email) : null;
+        $usernameVal = $username !== '' ? strtolower($username) : null;
 
         return [
-            "email" => $emailVal,
-            "username" => $usernameVal,
-            "name" => $name !== "" ? $name : null,
-            "plan" => $plan !== "" ? $plan : null,
-            "configured" => $emailVal !== null || $usernameVal !== null,
+            'email' => $emailVal,
+            'username' => $usernameVal,
+            'name' => $name !== '' ? $name : null,
+            'plan' => $plan !== '' ? $plan : null,
+            'configured' => $emailVal !== null || $usernameVal !== null,
         ];
     }
 
@@ -496,18 +496,18 @@ class PasaxDashboardSecret
     {
         try {
             $enabled = (bool) config(
-                "pasax.dashboard.auth.passwordless_owner",
+                'pasax.dashboard.auth.passwordless_owner',
                 true,
             );
         } catch (\Throwable) {
             $enabled = true;
         }
 
-        if (!$enabled) {
+        if (! $enabled) {
             return false;
         }
 
-        return self::resolveOwnerIdentity()["configured"];
+        return self::resolveOwnerIdentity()['configured'];
     }
 
     /**
@@ -519,40 +519,40 @@ class PasaxDashboardSecret
      */
     public static function matchesOwnerAccount(mixed $user): bool
     {
-        if (!is_object($user) && !is_array($user)) {
+        if (! is_object($user) && ! is_array($user)) {
             return false;
         }
 
         $identity = self::resolveOwnerIdentity();
-        if (!$identity["configured"]) {
+        if (! $identity['configured']) {
             return false;
         }
 
         $userEmail = is_array($user)
-            ? $user["email"] ?? null
+            ? $user['email'] ?? null
             : $user->email ?? null;
         $userUsername = is_array($user)
-            ? $user["username"] ?? null
+            ? $user['username'] ?? null
             : $user->username ?? null;
 
         $normalizedUserEmail = is_string($userEmail)
             ? strtolower(trim($userEmail))
-            : "";
+            : '';
         $normalizedUserUsername = is_string($userUsername)
             ? strtolower(trim($userUsername))
-            : "";
+            : '';
 
-        if (!empty($identity["email"])) {
-            if ($normalizedUserEmail !== "") {
-                return hash_equals($identity["email"], $normalizedUserEmail);
+        if (! empty($identity['email'])) {
+            if ($normalizedUserEmail !== '') {
+                return hash_equals($identity['email'], $normalizedUserEmail);
             }
 
             if (
-                !empty($identity["username"]) &&
-                $normalizedUserUsername !== ""
+                ! empty($identity['username']) &&
+                $normalizedUserUsername !== ''
             ) {
                 return hash_equals(
-                    $identity["username"],
+                    $identity['username'],
                     $normalizedUserUsername,
                 );
             }
@@ -560,8 +560,8 @@ class PasaxDashboardSecret
             return false;
         }
 
-        if (!empty($identity["username"]) && $normalizedUserUsername !== "") {
-            return hash_equals($identity["username"], $normalizedUserUsername);
+        if (! empty($identity['username']) && $normalizedUserUsername !== '') {
+            return hash_equals($identity['username'], $normalizedUserUsername);
         }
 
         return false;
@@ -575,36 +575,35 @@ class PasaxDashboardSecret
         try {
             $licenseKey = trim(
                 (string) config(
-                    "pasax.cloud.license_key",
-                    config("pasax.cloud.key", ""),
+                    'pasax.cloud.license_key',
+                    config('pasax.cloud.key', ''),
                 ),
             );
-            if ($licenseKey !== "") {
+            if ($licenseKey !== '') {
                 return $licenseKey;
             }
         } catch (\Throwable) {
         }
 
-        $envPath = base_path(".env");
+        $envPath = base_path('.env');
         foreach (
-            ["PASAX_LICENSE_KEY", "PASAX_CLOUD_KEY", "PASAX_API_KEY"]
-            as $envKey
+            ['PASAX_LICENSE_KEY', 'PASAX_CLOUD_KEY', 'PASAX_API_KEY'] as $envKey
         ) {
             $fromEnv = self::readEnvKeyFromFile($envPath, $envKey);
-            if ($fromEnv !== null && $fromEnv !== "") {
+            if ($fromEnv !== null && $fromEnv !== '') {
                 return $fromEnv;
             }
         }
 
         try {
-            $dashSecret = trim((string) config("pasax.dashboard.secret", ""));
-            if ($dashSecret !== "") {
+            $dashSecret = trim((string) config('pasax.dashboard.secret', ''));
+            if ($dashSecret !== '') {
                 return $dashSecret;
             }
         } catch (\Throwable) {
         }
 
-        return (string) (self::readFromEnvFile($envPath) ?? "");
+        return (string) (self::readFromEnvFile($envPath) ?? '');
     }
 
     /**
@@ -618,25 +617,25 @@ class PasaxDashboardSecret
         $signingKey = $secret ?? self::resolveSsoSigningSecret();
         $cleanSubject = strtolower(trim($subject));
 
-        if ($signingKey === "" || $cleanSubject === "") {
+        if ($signingKey === '' || $cleanSubject === '') {
             throw new RuntimeException(
-                "Kunci penandatanganan atau subjek pemilik Pasax belum tersedia.",
+                'Kunci penandatanganan atau subjek pemilik Pasax belum tersedia.',
             );
         }
 
         $now = time();
         $payload = [
-            "sub" => $cleanSubject,
-            "iat" => $now,
-            "exp" => $now + max(10, $ttlSeconds),
-            "nonce" => bin2hex(random_bytes(8)),
+            'sub' => $cleanSubject,
+            'iat' => $now,
+            'exp' => $now + max(10, $ttlSeconds),
+            'nonce' => bin2hex(random_bytes(8)),
         ];
 
         $json = (string) json_encode($payload, JSON_UNESCAPED_SLASHES);
         $encodedPayload = self::base64UrlEncode($json);
-        $signature = hash_hmac("sha256", $encodedPayload, $signingKey, true);
+        $signature = hash_hmac('sha256', $encodedPayload, $signingKey, true);
 
-        return $encodedPayload . "." . self::base64UrlEncode($signature);
+        return $encodedPayload.'.'.self::base64UrlEncode($signature);
     }
 
     /**
@@ -648,42 +647,42 @@ class PasaxDashboardSecret
         string $token,
         ?string $secret = null,
     ): array {
-        if (!self::isPasswordlessOwnerEnabled()) {
+        if (! self::isPasswordlessOwnerEnabled()) {
             return [
-                "valid" => false,
-                "subject" => null,
-                "reason" => "passwordless_disabled",
+                'valid' => false,
+                'subject' => null,
+                'reason' => 'passwordless_disabled',
             ];
         }
 
-        $parts = explode(".", trim($token));
-        if (count($parts) !== 2 || $parts[0] === "" || $parts[1] === "") {
+        $parts = explode('.', trim($token));
+        if (count($parts) !== 2 || $parts[0] === '' || $parts[1] === '') {
             return [
-                "valid" => false,
-                "subject" => null,
-                "reason" => "malformed",
+                'valid' => false,
+                'subject' => null,
+                'reason' => 'malformed',
             ];
         }
 
         [$encodedPayload, $encodedSignature] = $parts;
         $signingKey = $secret ?? self::resolveSsoSigningSecret();
 
-        if ($signingKey === "") {
+        if ($signingKey === '') {
             return [
-                "valid" => false,
-                "subject" => null,
-                "reason" => "missing_secret",
+                'valid' => false,
+                'subject' => null,
+                'reason' => 'missing_secret',
             ];
         }
 
         $expectedSig = self::base64UrlEncode(
-            hash_hmac("sha256", $encodedPayload, $signingKey, true),
+            hash_hmac('sha256', $encodedPayload, $signingKey, true),
         );
-        if (!hash_equals($expectedSig, $encodedSignature)) {
+        if (! hash_equals($expectedSig, $encodedSignature)) {
             return [
-                "valid" => false,
-                "subject" => null,
-                "reason" => "invalid_signature",
+                'valid' => false,
+                'subject' => null,
+                'reason' => 'invalid_signature',
             ];
         }
 
@@ -691,44 +690,44 @@ class PasaxDashboardSecret
         $payload = is_string($decoded) ? json_decode($decoded, true) : null;
 
         if (
-            !is_array($payload) ||
-            empty($payload["sub"]) ||
-            empty($payload["exp"]) ||
-            empty($payload["nonce"])
+            ! is_array($payload) ||
+            empty($payload['sub']) ||
+            empty($payload['exp']) ||
+            empty($payload['nonce'])
         ) {
             return [
-                "valid" => false,
-                "subject" => null,
-                "reason" => "invalid_payload",
+                'valid' => false,
+                'subject' => null,
+                'reason' => 'invalid_payload',
             ];
         }
 
-        if ((int) $payload["exp"] < time()) {
-            return ["valid" => false, "subject" => null, "reason" => "expired"];
+        if ((int) $payload['exp'] < time()) {
+            return ['valid' => false, 'subject' => null, 'reason' => 'expired'];
         }
 
-        $subject = strtolower(trim((string) $payload["sub"]));
+        $subject = strtolower(trim((string) $payload['sub']));
         $identity = self::resolveOwnerIdentity();
 
         $matchesEmail =
-            !empty($identity["email"]) &&
-            hash_equals($identity["email"], $subject);
+            ! empty($identity['email']) &&
+            hash_equals($identity['email'], $subject);
         $matchesUsername =
-            !empty($identity["username"]) &&
-            hash_equals($identity["username"], $subject);
+            ! empty($identity['username']) &&
+            hash_equals($identity['username'], $subject);
 
-        if (!$matchesEmail && !$matchesUsername) {
+        if (! $matchesEmail && ! $matchesUsername) {
             return [
-                "valid" => false,
-                "subject" => null,
-                "reason" => "subject_mismatch",
+                'valid' => false,
+                'subject' => null,
+                'reason' => 'subject_mismatch',
             ];
         }
 
         return [
-            "valid" => true,
-            "subject" => $subject,
-            "reason" => null,
+            'valid' => true,
+            'subject' => $subject,
+            'reason' => null,
         ];
     }
 
@@ -739,7 +738,7 @@ class PasaxDashboardSecret
         string $password,
         string $secret,
     ): string {
-        return hash_hmac("sha256", $password, $secret);
+        return hash_hmac('sha256', $password, $secret);
     }
 
     /**
@@ -749,8 +748,8 @@ class PasaxDashboardSecret
     {
         try {
             return PasaxSetting::query()
-                ->where("key", self::DB_PASSWORD_HASH_KEY)
-                ->value("value");
+                ->where('key', self::DB_PASSWORD_HASH_KEY)
+                ->value('value');
         } catch (\Throwable) {
             return null;
         }
@@ -766,8 +765,8 @@ class PasaxDashboardSecret
         $hash = self::hashPassword($password, $secret);
 
         PasaxSetting::query()->updateOrCreate(
-            ["key" => self::DB_PASSWORD_HASH_KEY],
-            ["value" => $hash],
+            ['key' => self::DB_PASSWORD_HASH_KEY],
+            ['value' => $hash],
         );
     }
 
@@ -778,7 +777,7 @@ class PasaxDashboardSecret
     {
         $hash = self::getStoredPasswordHash();
 
-        return !empty($hash);
+        return ! empty($hash);
     }
 
     /**
@@ -793,18 +792,18 @@ class PasaxDashboardSecret
     ): array {
         $storedHash = self::getStoredPasswordHash();
         $isEmergencySecret =
-            $secret !== "" && hash_equals($secret, $inputPassword);
+            $secret !== '' && hash_equals($secret, $inputPassword);
 
         // 1. Jika password kustom sudah pernah disimpan di database
-        if (!empty($storedHash)) {
+        if (! empty($storedHash)) {
             $calculated = self::hashPassword($inputPassword, $secret);
             $isCustomValid = hash_equals($storedHash, $calculated);
             $valid = $isCustomValid || $isEmergencySecret;
 
             return [
-                "valid" => $valid,
-                "is_default" => false,
-                "is_emergency" => $isEmergencySecret && !$isCustomValid,
+                'valid' => $valid,
+                'is_default' => false,
+                'is_emergency' => $isEmergencySecret && ! $isCustomValid,
             ];
         }
 
@@ -813,9 +812,9 @@ class PasaxDashboardSecret
         $valid = $isDefault || $isEmergencySecret;
 
         return [
-            "valid" => $valid,
-            "is_default" => $isDefault,
-            "is_emergency" => $isEmergencySecret && !$isDefault,
+            'valid' => $valid,
+            'is_default' => $isDefault,
+            'is_emergency' => $isEmergencySecret && ! $isDefault,
         ];
     }
 
@@ -824,7 +823,7 @@ class PasaxDashboardSecret
      */
     public static function formatEnvLine(string $secret): string
     {
-        return self::ENV_KEY . "=" . $secret;
+        return self::ENV_KEY.'='.$secret;
     }
 
     /**
@@ -843,8 +842,8 @@ class PasaxDashboardSecret
         }
 
         // Potong komentar inline (# ...) jika ada
-        if (str_contains($trimmed, "#")) {
-            $parts = explode("#", $trimmed, 2);
+        if (str_contains($trimmed, '#')) {
+            $parts = explode('#', $trimmed, 2);
             $trimmed = trim($parts[0]);
         }
 
@@ -853,15 +852,15 @@ class PasaxDashboardSecret
 
     protected static function base64UrlEncode(string $data): string
     {
-        return rtrim(strtr(base64_encode($data), "+/", "-_"), "=");
+        return rtrim(strtr(base64_encode($data), '+/', '-_'), '=');
     }
 
     protected static function base64UrlDecode(string $data): ?string
     {
-        $padded = strtr($data, "-_", "+/");
+        $padded = strtr($data, '-_', '+/');
         $remainder = strlen($padded) % 4;
         if ($remainder > 0) {
-            $padded .= str_repeat("=", 4 - $remainder);
+            $padded .= str_repeat('=', 4 - $remainder);
         }
 
         $decoded = base64_decode($padded, true);

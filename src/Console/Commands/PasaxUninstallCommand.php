@@ -16,44 +16,44 @@ class PasaxUninstallCommand extends Command
                             {--keep-env : Jangan hapus variabel PASAX_* dari .env}
                             {--keep-skills : Jangan hapus skill AI (.agents/skills/pasax) dan panduan AGENTS.md}';
 
-    protected $description = "Hapus seluruh jejak Pasax dari aplikasi host (konfigurasi, rute, middleware, trait, tabel, dan berkas publikasi) tanpa merusak aplikasi";
+    protected $description = 'Hapus seluruh jejak Pasax dari aplikasi host (konfigurasi, rute, middleware, trait, tabel, dan berkas publikasi) tanpa merusak aplikasi';
 
     public function handle(): int
     {
-        $force = (bool) $this->option("force");
+        $force = (bool) $this->option('force');
 
         if (
-            !$force &&
-            !$this->confirm(
-                "Hapus SELURUH instalasi Pasax dari aplikasi ini? (konfigurasi, rute, middleware, trait User, dan TABEL database)",
+            ! $force &&
+            ! $this->confirm(
+                'Hapus SELURUH instalasi Pasax dari aplikasi ini? (konfigurasi, rute, middleware, trait User, dan TABEL database)',
                 false,
             )
         ) {
-            $this->line("Pembatalan: tidak ada perubahan yang dilakukan.");
+            $this->line('Pembatalan: tidak ada perubahan yang dilakukan.');
 
             return self::SUCCESS;
         }
 
-        $this->info("Memulai pencopotan Pasax...");
+        $this->info('Memulai pencopotan Pasax...');
         $this->newLine();
 
-        $this->removeDatabaseTables((bool) $this->option("keep-tables"));
+        $this->removeDatabaseTables((bool) $this->option('keep-tables'));
         $this->removeRouteFiles();
         $this->removeMiddlewareFromApp();
         $this->removeUserTrait();
-        $this->removeEnvironmentVariables((bool) $this->option("keep-env"));
+        $this->removeEnvironmentVariables((bool) $this->option('keep-env'));
         $this->restoreHtaccess();
         $this->removePublishedFiles();
-        if (!(bool) $this->option("keep-skills")) {
+        if (! (bool) $this->option('keep-skills')) {
             $this->removeAgentSkillsAndGuidelines();
         }
         $this->removeBackupFiles();
         $this->removeComposerPackage();
 
         try {
-            $this->callSilent("optimize:clear");
+            $this->callSilent('optimize:clear');
             $this->info(
-                "  ✓ Cache konfigurasi, rute, dan tampilan dibersihkan.",
+                '  ✓ Cache konfigurasi, rute, dan tampilan dibersihkan.',
             );
         } catch (\Throwable) {
             // Abaikan bila tidak didukung environment tersebut.
@@ -61,10 +61,10 @@ class PasaxUninstallCommand extends Command
 
         $this->newLine();
         $this->info(
-            "Pencopotan selesai. Aplikasi Anda kembali seperti sebelum Pasax dipasang.",
+            'Pencopotan selesai. Aplikasi Anda kembali seperti sebelum Pasax dipasang.',
         );
         $this->line(
-            "  Disarankan: <fg=yellow>php artisan config:clear && php artisan route:clear && composer dump-autoload</>",
+            '  Disarankan: <fg=yellow>php artisan config:clear && php artisan route:clear && composer dump-autoload</>',
         );
 
         return self::SUCCESS;
@@ -76,44 +76,44 @@ class PasaxUninstallCommand extends Command
     protected function removeDatabaseTables(bool $keep): void
     {
         if ($keep) {
-            $this->line("  - Tabel database dilewati (--keep-tables).");
+            $this->line('  - Tabel database dilewati (--keep-tables).');
 
             return;
         }
 
         $tables = [
-            config("pasax.table_names.settings", "pasax_settings"),
-            config("pasax.table_names.allowed_ips", "pasax_allowed_ips"),
-            config("pasax.table_names.trusted_ips", "pasax_trusted_ips"),
-            config("pasax.table_names.user_logins", "pasax_user_logins"),
+            config('pasax.table_names.settings', 'pasax_settings'),
+            config('pasax.table_names.allowed_ips', 'pasax_allowed_ips'),
+            config('pasax.table_names.trusted_ips', 'pasax_trusted_ips'),
+            config('pasax.table_names.user_logins', 'pasax_user_logins'),
             config(
-                "pasax.table_names.ip_unblock_requests",
-                "pasax_ip_unblock_requests",
+                'pasax.table_names.ip_unblock_requests',
+                'pasax_ip_unblock_requests',
             ),
-            config("pasax.table_names.login_attempts", "pasax_login_attempts"),
+            config('pasax.table_names.login_attempts', 'pasax_login_attempts'),
             config(
-                "pasax.table_names.pasax_logs",
-                config("pasax.table_names.security_logs", "pasax_logs"),
+                'pasax.table_names.pasax_logs',
+                config('pasax.table_names.security_logs', 'pasax_logs'),
             ),
-            config("pasax.table_names.blocked_ips", "pasax_blocked_ips"),
+            config('pasax.table_names.blocked_ips', 'pasax_blocked_ips'),
             // Varian lama (pra-prefix) agar tidak tertinggal.
-            "allowed_ips",
-            "trusted_ips",
-            "user_logins",
-            "ip_unblock_requests",
-            "login_attempts",
-            "blocked_ips",
+            'allowed_ips',
+            'trusted_ips',
+            'user_logins',
+            'ip_unblock_requests',
+            'login_attempts',
+            'blocked_ips',
             // Varian lama (pra-rename) agar tidak tertinggal.
-            "security_logs",
-            "security_settings",
+            'security_logs',
+            'security_settings',
         ];
 
         $isSeparateSqlite =
             PasaxDatabase::isSeparateConnection() && PasaxDatabase::isSqlite();
         $sqlitePath = $isSeparateSqlite ? PasaxDatabase::sqlitePath() : null;
         $shouldTouchPasaxSchema =
-            !$isSeparateSqlite ||
-            ($sqlitePath === ":memory:" || File::exists((string) $sqlitePath));
+            ! $isSeparateSqlite ||
+            ($sqlitePath === ':memory:' || File::exists((string) $sqlitePath));
 
         if ($shouldTouchPasaxSchema) {
             try {
@@ -121,7 +121,7 @@ class PasaxUninstallCommand extends Command
                 $pasaxSchema->disableForeignKeyConstraints();
                 try {
                     foreach (array_unique($tables) as $table) {
-                        if (!is_string($table) || $table === "") {
+                        if (! is_string($table) || $table === '') {
                             continue;
                         }
 
@@ -132,7 +132,7 @@ class PasaxUninstallCommand extends Command
                             }
                         } catch (\Throwable $e) {
                             $this->warn(
-                                "  ⚠ Gagal menghapus tabel '{$table}': " .
+                                "  ⚠ Gagal menghapus tabel '{$table}': ".
                                     $e->getMessage(),
                             );
                         }
@@ -142,7 +142,7 @@ class PasaxUninstallCommand extends Command
                 }
             } catch (\Throwable $e) {
                 $this->warn(
-                    "  ⚠ Gagal mengakses koneksi database Pasax: " .
+                    '  ⚠ Gagal mengakses koneksi database Pasax: '.
                         $e->getMessage(),
                 );
             }
@@ -152,7 +152,7 @@ class PasaxUninstallCommand extends Command
         if (
             $isSeparateSqlite &&
             is_string($sqlitePath) &&
-            $sqlitePath !== ":memory:"
+            $sqlitePath !== ':memory:'
         ) {
             try {
                 PasaxDatabase::connection()->disconnect();
@@ -160,13 +160,12 @@ class PasaxUninstallCommand extends Command
             }
 
             foreach (
-                [$sqlitePath, $sqlitePath . "-wal", $sqlitePath . "-shm"]
-                as $dbFile
+                [$sqlitePath, $sqlitePath.'-wal', $sqlitePath.'-shm'] as $dbFile
             ) {
                 if (File::exists($dbFile)) {
                     File::delete($dbFile);
                     $this->info(
-                        "  ✓ Berkas SQLite Pasax dihapus: " .
+                        '  ✓ Berkas SQLite Pasax dihapus: '.
                             $this->relativePath($dbFile),
                     );
                 }
@@ -176,19 +175,19 @@ class PasaxUninstallCommand extends Command
         // Hapus record migrasi milik Pasax agar install ulang berjalan bersih
         // (jika tidak, "Nothing to migrate" padahal tabel sudah tidak ada).
         $legacyMigrations = [
-            "2026_01_01_000001_create_security_blocked_ips_table",
-            "2026_01_01_000002_create_security_logs_table",
-            "2026_01_01_000003_create_security_login_attempts_table",
-            "2026_01_01_000004_create_security_ip_unblock_requests_table",
-            "2026_01_01_000005_create_security_user_logins_and_trusted_ips_table",
-            "2026_01_01_000006_create_security_settings_table",
+            '2026_01_01_000001_create_security_blocked_ips_table',
+            '2026_01_01_000002_create_security_logs_table',
+            '2026_01_01_000003_create_security_login_attempts_table',
+            '2026_01_01_000004_create_security_ip_unblock_requests_table',
+            '2026_01_01_000005_create_security_user_logins_and_trusted_ips_table',
+            '2026_01_01_000006_create_security_settings_table',
         ];
 
         try {
-            if (Schema::hasTable("migrations")) {
-                $deleted = DB::table("migrations")
-                    ->where("migration", "like", "%pasax%")
-                    ->orWhereIn("migration", $legacyMigrations)
+            if (Schema::hasTable('migrations')) {
+                $deleted = DB::table('migrations')
+                    ->where('migration', 'like', '%pasax%')
+                    ->orWhereIn('migration', $legacyMigrations)
                     ->delete();
 
                 if ($deleted > 0) {
@@ -199,7 +198,7 @@ class PasaxUninstallCommand extends Command
             }
         } catch (\Throwable $e) {
             $this->warn(
-                "  ⚠ Gagal membersihkan record migrasi: " . $e->getMessage(),
+                '  ⚠ Gagal membersihkan record migrasi: '.$e->getMessage(),
             );
         }
     }
@@ -211,11 +210,10 @@ class PasaxUninstallCommand extends Command
     {
         foreach (
             [
-                "routes/pasax.php",
-                "routes/pasax-api.php",
-                "routes/pasax-service.php",
-            ]
-            as $relative
+                'routes/pasax.php',
+                'routes/pasax-api.php',
+                'routes/pasax-service.php',
+            ] as $relative
         ) {
             $path = base_path($relative);
             if (File::exists($path)) {
@@ -233,9 +231,9 @@ class PasaxUninstallCommand extends Command
             "require __DIR__.'/security-api.php';",
         ];
 
-        foreach (["routes/web.php", "routes/api.php"] as $relative) {
+        foreach (['routes/web.php', 'routes/api.php'] as $relative) {
             $path = base_path($relative);
-            if (!File::exists($path)) {
+            if (! File::exists($path)) {
                 continue;
             }
 
@@ -244,23 +242,23 @@ class PasaxUninstallCommand extends Command
             // Bersihkan blok if (file_exists(...)) { require ...; }
             $cleaned = (string) preg_replace(
                 "/[ \t]*if\s*\(\s*file_exists\s*\(\s*__DIR__\s*\.\s*[\x27\"]\/(?:pasax|pasax-service|security|security-api)\.php[\x27\"]\s*\)\s*\)\s*\{[ \t]*\r?\n?[ \t]*(?:require|require_once|include|include_once)\s+__DIR__\s*\.\s*[\x27\"]\/(?:pasax|pasax-service|security|security-api)\.php[\x27\"]\s*;[ \t]*\r?\n?[ \t]*\}[ \t]*\r?\n?/m",
-                "",
+                '',
                 $content,
             );
 
             // Bersihkan via regex require standar untuk menangani variasi spasi (misal Pint/CS-Fixer: require __DIR__ . '/pasax.php';)
             $cleaned = (string) preg_replace(
                 "/^[ \t]*(?:require|require_once|include|include_once)\s+__DIR__\s*\.\s*[\x27\"]\/(?:pasax|pasax-service|security|security-api)\.php[\x27\"]\s*;[ \t]*\r?\n?/m",
-                "",
+                '',
                 $cleaned,
             );
 
             $cleaned = str_replace(
-                array_map(fn($line) => "\n" . $line, $requireLines),
-                "",
+                array_map(fn ($line) => "\n".$line, $requireLines),
+                '',
                 $cleaned,
             );
-            $cleaned = str_replace($requireLines, "", $cleaned);
+            $cleaned = str_replace($requireLines, '', $cleaned);
 
             if ($cleaned !== $content) {
                 File::put($path, $this->normalizePhpFile($cleaned));
@@ -275,38 +273,38 @@ class PasaxUninstallCommand extends Command
     protected function removeMiddlewareFromApp(): void
     {
         $targets = [
-            base_path("bootstrap/app.php"),
-            app_path("Http/Kernel.php"),
+            base_path('bootstrap/app.php'),
+            app_path('Http/Kernel.php'),
         ];
 
         $markers = [
-            "Pasax\\SecureMonitor\\Http\\Middleware\\PasaxBlockIpAddress::class",
-            "Pasax\\SecureMonitor\\Http\\Middleware\\PasaxDetectSecurityThreats::class",
-            "Pasax\\SecureMonitor\\Http\\Middleware\\PasaxInjectAnnouncementBanner::class",
-            "Pasax\\SecureMonitor\\Http\\Middleware\\BlockIpAddress::class",
-            "Pasax\\SecureMonitor\\Http\\Middleware\\DetectSecurityThreats::class",
-            "Pasax\\SecureMonitor\\Http\\Middleware\\InjectAnnouncementBanner::class",
+            'Pasax\\SecureMonitor\\Http\\Middleware\\PasaxBlockIpAddress::class',
+            'Pasax\\SecureMonitor\\Http\\Middleware\\PasaxDetectSecurityThreats::class',
+            'Pasax\\SecureMonitor\\Http\\Middleware\\PasaxInjectAnnouncementBanner::class',
+            'Pasax\\SecureMonitor\\Http\\Middleware\\BlockIpAddress::class',
+            'Pasax\\SecureMonitor\\Http\\Middleware\\DetectSecurityThreats::class',
+            'Pasax\\SecureMonitor\\Http\\Middleware\\InjectAnnouncementBanner::class',
             // Varian lama (pra-rename namespace).
-            "Internal\\SecurityMonitor\\Http\\Middleware\\BlockIpAddress::class",
-            "Internal\\SecurityMonitor\\Http\\Middleware\\DetectSecurityThreats::class",
+            'Internal\\SecurityMonitor\\Http\\Middleware\\BlockIpAddress::class',
+            'Internal\\SecurityMonitor\\Http\\Middleware\\DetectSecurityThreats::class',
         ];
         // Gaya import "use Pasax\SecureMonitor\...;" (nama pendek tanpa namespace).
         $importMarkers = [
-            "use Pasax\\SecureMonitor\\Http\\Middleware\\",
-            "use Internal\\SecurityMonitor\\Http\\Middleware\\",
+            'use Pasax\\SecureMonitor\\Http\\Middleware\\',
+            'use Internal\\SecurityMonitor\\Http\\Middleware\\',
         ];
         // Pemakaian nama pendek ("PasaxBlockIpAddress::class," / "BlockIpAddress::class,").
         $shortClassMarkers = [
-            "PasaxBlockIpAddress::class",
-            "PasaxDetectSecurityThreats::class",
-            "PasaxInjectAnnouncementBanner::class",
-            "BlockIpAddress::class",
-            "DetectSecurityThreats::class",
-            "InjectAnnouncementBanner::class",
+            'PasaxBlockIpAddress::class',
+            'PasaxDetectSecurityThreats::class',
+            'PasaxInjectAnnouncementBanner::class',
+            'BlockIpAddress::class',
+            'DetectSecurityThreats::class',
+            'InjectAnnouncementBanner::class',
         ];
 
         foreach ($targets as $path) {
-            if (!File::exists($path)) {
+            if (! File::exists($path)) {
                 continue;
             }
 
@@ -314,8 +312,8 @@ class PasaxUninstallCommand extends Command
             $filtered = array_values(
                 array_filter(
                     $lines,
-                    fn($line) => !$this->lineReferences($line, $markers) &&
-                        !$this->shortClassReferenced($line, $shortClassMarkers),
+                    fn ($line) => ! $this->lineReferences($line, $markers) &&
+                        ! $this->shortClassReferenced($line, $shortClassMarkers),
                 ),
             );
 
@@ -323,7 +321,7 @@ class PasaxUninstallCommand extends Command
                 $filtered = array_values(
                     array_filter(
                         $filtered,
-                        fn($line) => !str_contains($line, $marker),
+                        fn ($line) => ! str_contains($line, $marker),
                     ),
                 );
             }
@@ -332,23 +330,23 @@ class PasaxUninstallCommand extends Command
             // (termasuk receiver $middleware agar tidak tersisa statement gantung).
             $content = (string) preg_replace(
                 '/(?:\$middleware\s*)?->append\(\[\s*\]\);\n?/',
-                "",
+                '',
                 implode("\n", $filtered),
             );
 
             // Baris sisa berupa statement variabel gantung ("$middleware" / "$middleware;") -> buang.
             $content = (string) preg_replace(
                 '/^[ \t]*\$middleware[ \t]*;?[ \t]*\r?$/m',
-                "",
+                '',
                 $content,
             );
 
             if ($content !== null && $content !== File::get($path)) {
                 File::put($path, $this->normalizePhpFile($content));
                 $this->info(
-                    "  ✓ Middleware Pasax dihapus dari " .
-                        basename((string) $path) .
-                        ".",
+                    '  ✓ Middleware Pasax dihapus dari '.
+                        basename((string) $path).
+                        '.',
                 );
             }
         }
@@ -374,7 +372,7 @@ class PasaxUninstallCommand extends Command
         foreach ($markers as $marker) {
             if (
                 preg_match(
-                    "/(^|[^A-Za-z0-9_\\\\])" . preg_quote($marker, "/") . "/",
+                    '/(^|[^A-Za-z0-9_\\\\])'.preg_quote($marker, '/').'/',
                     $line,
                 ) === 1
             ) {
@@ -393,7 +391,7 @@ class PasaxUninstallCommand extends Command
     {
         $content = (string) preg_replace("/\n{3,}/", "\n\n", $content);
 
-        return rtrim($content) . "\n";
+        return rtrim($content)."\n";
     }
 
     /**
@@ -401,50 +399,50 @@ class PasaxUninstallCommand extends Command
      */
     protected function removeUserTrait(): void
     {
-        $candidates = [app_path("Models/User.php"), base_path("app/User.php")];
+        $candidates = [app_path('Models/User.php'), base_path('app/User.php')];
 
-        $traits = ["HasPasaxSecurityRelations", "HasSecurityRelations"];
+        $traits = ['HasPasaxSecurityRelations', 'HasSecurityRelations'];
         $imports = [
-            "use Pasax\\SecureMonitor\\Concerns\\HasPasaxSecurityRelations;",
-            "use Pasax\\SecureMonitor\\Concerns\\HasSecurityRelations;",
-            "use Internal\\SecurityMonitor\\Concerns\\HasSecurityRelations;",
+            'use Pasax\\SecureMonitor\\Concerns\\HasPasaxSecurityRelations;',
+            'use Pasax\\SecureMonitor\\Concerns\\HasSecurityRelations;',
+            'use Internal\\SecurityMonitor\\Concerns\\HasSecurityRelations;',
         ];
 
         foreach ($candidates as $path) {
-            if (!File::exists($path)) {
+            if (! File::exists($path)) {
                 continue;
             }
 
             $content = File::get($path);
             $original = $content;
 
-            $content = str_replace($imports, "", $content);
+            $content = str_replace($imports, '', $content);
 
             foreach ($traits as $trait) {
                 // "use HasPasaxSecurityRelations;" mandiri -> hapus barisnya.
                 $content = (string) preg_replace(
-                    '/^[ \t]*use\s+' .
-                        preg_quote($trait, "/") .
+                    '/^[ \t]*use\s+'.
+                        preg_quote($trait, '/').
                         '\s*;[ \t]*\r?\n?/m',
-                    "",
+                    '',
                     $content,
                 );
                 // Daftar gabungan "use A, HasPasaxSecurityRelations, B;" -> keluarkan namanya.
                 $content = (string) preg_replace(
-                    "/,\s*" . preg_quote($trait, "/") . "\b/",
-                    "",
+                    "/,\s*".preg_quote($trait, '/')."\b/",
+                    '',
                     $content,
                 );
                 $content = (string) preg_replace(
-                    "/\b" . preg_quote($trait, "/") . "\s*,\s*/",
-                    "",
+                    "/\b".preg_quote($trait, '/')."\s*,\s*/",
+                    '',
                     $content,
                 );
             }
 
             if ($content !== $original) {
                 File::put($path, $this->normalizePhpFile($content));
-                $this->info("  ✓ Trait Pasax dilepas dari model User.");
+                $this->info('  ✓ Trait Pasax dilepas dari model User.');
             }
         }
     }
@@ -455,7 +453,7 @@ class PasaxUninstallCommand extends Command
     protected function removeEnvironmentVariables(bool $keep): void
     {
         if ($keep) {
-            $this->line("  - Variabel .env dilewati (--keep-env).");
+            $this->line('  - Variabel .env dilewati (--keep-env).');
 
             return;
         }
@@ -463,10 +461,9 @@ class PasaxUninstallCommand extends Command
         $stubLines = [];
         foreach (
             [
-                __DIR__ . "/../../../stubs/env.stub",
-                dirname(__DIR__, 3) . "/stubs/env.stub",
-            ]
-            as $candidate
+                __DIR__.'/../../../stubs/env.stub',
+                dirname(__DIR__, 3).'/stubs/env.stub',
+            ] as $candidate
         ) {
             if (File::exists($candidate)) {
                 $stubLines = explode("\n", File::get($candidate));
@@ -476,14 +473,14 @@ class PasaxUninstallCommand extends Command
 
         $stubComments = [];
         foreach ($stubLines as $stubLine) {
-            if (str_starts_with(trim($stubLine), "#")) {
+            if (str_starts_with(trim($stubLine), '#')) {
                 $stubComments[trim($stubLine)] = true;
             }
         }
 
-        foreach ([".env", ".env.example"] as $envFile) {
+        foreach (['.env', '.env.example'] as $envFile) {
             $path = base_path($envFile);
-            if (!File::exists($path)) {
+            if (! File::exists($path)) {
                 continue;
             }
 
@@ -491,13 +488,13 @@ class PasaxUninstallCommand extends Command
             foreach (explode("\n", File::get($path)) as $line) {
                 $trimmed = trim($line);
 
-                if (preg_match("/^PASAX_[A-Z0-9_]+=/", $trimmed)) {
+                if (preg_match('/^PASAX_[A-Z0-9_]+=/', $trimmed)) {
                     continue;
                 }
 
                 if (
-                    $trimmed !== "" &&
-                    str_starts_with($trimmed, "#") &&
+                    $trimmed !== '' &&
+                    str_starts_with($trimmed, '#') &&
                     isset($stubComments[$trimmed])
                 ) {
                     continue;
@@ -507,7 +504,7 @@ class PasaxUninstallCommand extends Command
             }
 
             $cleaned = preg_replace("/\n{3,}/", "\n\n", implode("\n", $kept));
-            File::put($path, rtrim($cleaned ?? implode("\n", $kept)) . "\n");
+            File::put($path, rtrim($cleaned ?? implode("\n", $kept))."\n");
             $this->info("  ✓ Variabel PASAX_* dihapus dari {$envFile}.");
         }
     }
@@ -517,35 +514,35 @@ class PasaxUninstallCommand extends Command
      */
     protected function restoreHtaccess(): void
     {
-        $htaccessPath = public_path(".htaccess");
-        $pasaxHtaccessPath = public_path(".htaccess.pasax");
+        $htaccessPath = public_path('.htaccess');
+        $pasaxHtaccessPath = public_path('.htaccess.pasax');
 
         if (File::exists($pasaxHtaccessPath)) {
             File::delete($pasaxHtaccessPath);
-            $this->info("  ✓ Berkas public/.htaccess.pasax dihapus.");
+            $this->info('  ✓ Berkas public/.htaccess.pasax dihapus.');
         }
 
-        $backups = glob(public_path(".htaccess.backup-*")) ?: [];
+        $backups = glob(public_path('.htaccess.backup-*')) ?: [];
         if ($backups !== []) {
             rsort($backups);
             File::copy($backups[0], $htaccessPath);
             $this->info(
-                "  ✓ public/.htaccess dikembalikan dari cadangan (" .
-                    basename((string) $backups[0]) .
-                    ").",
+                '  ✓ public/.htaccess dikembalikan dari cadangan ('.
+                    basename((string) $backups[0]).
+                    ').',
             );
 
             return;
         }
 
-        if (!File::exists($htaccessPath)) {
+        if (! File::exists($htaccessPath)) {
             return;
         }
 
         // Tanpa cadangan: hapus hanya bila isinya persis stub kita.
         $stubCandidates = [
-            __DIR__ . "/../../../stubs/htaccess.stub",
-            dirname(__DIR__, 2) . "/stubs/htaccess.stub",
+            __DIR__.'/../../../stubs/htaccess.stub',
+            dirname(__DIR__, 2).'/stubs/htaccess.stub',
         ];
 
         foreach ($stubCandidates as $stubPath) {
@@ -554,14 +551,14 @@ class PasaxUninstallCommand extends Command
                 File::get($htaccessPath) === File::get($stubPath)
             ) {
                 File::delete($htaccessPath);
-                $this->info("  ✓ public/.htaccess (murni dari Pasax) dihapus.");
+                $this->info('  ✓ public/.htaccess (murni dari Pasax) dihapus.');
 
                 return;
             }
         }
 
         $this->line(
-            "  - public/.htaccess dibiarkan (kustom; tanpa cadangan untuk dipulihkan).",
+            '  - public/.htaccess dibiarkan (kustom; tanpa cadangan untuk dipulihkan).',
         );
     }
 
@@ -571,53 +568,50 @@ class PasaxUninstallCommand extends Command
     protected function removePublishedFiles(): void
     {
         $deletions = [
-            config_path("pasax.php"),
-            config_path("security.php"),
-            resource_path("views/errors/blocked.blade.php"),
-            resource_path("views/errors/pasax-login-throttle.blade.php"),
-            resource_path("views/errors/login-throttle.blade.php"),
+            config_path('pasax.php'),
+            config_path('security.php'),
+            resource_path('views/errors/blocked.blade.php'),
+            resource_path('views/errors/pasax-login-throttle.blade.php'),
+            resource_path('views/errors/login-throttle.blade.php'),
         ];
 
         foreach ($deletions as $path) {
             if (File::exists($path)) {
                 File::delete($path);
-                $this->info("  ✓ Dihapus: " . $this->relativePath($path));
+                $this->info('  ✓ Dihapus: '.$this->relativePath($path));
             }
         }
 
         foreach (
-            glob(database_path("migrations/*_pasax_*.php")) ?: []
-            as $migration
+            glob(database_path('migrations/*_pasax_*.php')) ?: [] as $migration
         ) {
             File::delete($migration);
             $this->info(
-                "  ✓ Dihapus: " . $this->relativePath((string) $migration),
+                '  ✓ Dihapus: '.$this->relativePath((string) $migration),
             );
         }
         foreach (
-            glob(database_path("migrations/*_security_*.php")) ?: []
-            as $migration
+            glob(database_path('migrations/*_security_*.php')) ?: [] as $migration
         ) {
             if (
                 str_contains(
                     File::get((string) $migration),
-                    "Pasax\\SecureMonitor",
+                    'Pasax\\SecureMonitor',
                 ) ||
                 str_contains(
                     File::get((string) $migration),
-                    "pasax.table_names",
+                    'pasax.table_names',
                 )
             ) {
                 File::delete($migration);
                 $this->info(
-                    "  ✓ Dihapus: " . $this->relativePath((string) $migration),
+                    '  ✓ Dihapus: '.$this->relativePath((string) $migration),
                 );
             }
         }
 
         foreach (
-            ["views/pages/pasax", "js/pages/pasax", "js/components/pasax"]
-            as $relative
+            ['views/pages/pasax', 'js/pages/pasax', 'js/components/pasax'] as $relative
         ) {
             $path = resource_path($relative);
             if (File::isDirectory($path)) {
@@ -628,22 +622,20 @@ class PasaxUninstallCommand extends Command
 
         foreach (
             [
-                "nginx.conf.stub" => "nginx.conf",
-                "apache2.conf.stub" => "apache2.conf",
-            ]
-            as $stub => $target
+                'nginx.conf.stub' => 'nginx.conf',
+                'apache2.conf.stub' => 'apache2.conf',
+            ] as $stub => $target
         ) {
             $targetPath = base_path($target);
-            if (!File::exists($targetPath)) {
+            if (! File::exists($targetPath)) {
                 continue;
             }
 
             foreach (
                 [
-                    __DIR__ . "/../../../stubs/" . $stub,
-                    dirname(__DIR__, 2) . "/stubs/" . $stub,
-                ]
-                as $stubPath
+                    __DIR__.'/../../../stubs/'.$stub,
+                    dirname(__DIR__, 2).'/stubs/'.$stub,
+                ] as $stubPath
             ) {
                 if (
                     File::exists($stubPath) &&
@@ -661,12 +653,11 @@ class PasaxUninstallCommand extends Command
         // Hapus direktori induk yang kini kosong agar tidak ada folder yatim.
         foreach (
             [
-                resource_path("views/errors"),
-                resource_path("views/pages"),
-                resource_path("js/pages"),
-                resource_path("js/components"),
-            ]
-            as $dir
+                resource_path('views/errors'),
+                resource_path('views/pages'),
+                resource_path('js/pages'),
+                resource_path('js/components'),
+            ] as $dir
         ) {
             $this->removeDirectoryIfEmpty($dir);
         }
@@ -677,18 +668,18 @@ class PasaxUninstallCommand extends Command
      */
     protected function removeAgentSkillsAndGuidelines(): void
     {
-        $skillFile = base_path(".agents/skills/pasax/SKILL.md");
+        $skillFile = base_path('.agents/skills/pasax/SKILL.md');
         if (File::exists($skillFile)) {
             File::delete($skillFile);
-            $this->info("  ✓ Dihapus: " . $this->relativePath($skillFile));
-            $this->removeDirectoryIfEmpty(base_path(".agents/skills/pasax"));
-            $this->removeDirectoryIfEmpty(base_path(".agents/skills"));
-            $this->removeDirectoryIfEmpty(base_path(".agents"));
+            $this->info('  ✓ Dihapus: '.$this->relativePath($skillFile));
+            $this->removeDirectoryIfEmpty(base_path('.agents/skills/pasax'));
+            $this->removeDirectoryIfEmpty(base_path('.agents/skills'));
+            $this->removeDirectoryIfEmpty(base_path('.agents'));
         }
 
-        foreach (["AGENTS.md", "CLAUDE.md"] as $agentFileName) {
+        foreach (['AGENTS.md', 'CLAUDE.md'] as $agentFileName) {
             $agentFile = base_path($agentFileName);
-            if (!File::exists($agentFile) || is_link($agentFile)) {
+            if (! File::exists($agentFile) || is_link($agentFile)) {
                 continue;
             }
 
@@ -697,14 +688,14 @@ class PasaxUninstallCommand extends Command
                 "/\s*<!-- pasax-guidelines:start -->.*?<!-- pasax-guidelines:end -->\s*/s";
 
             if (preg_match($pattern, $content)) {
-                $cleaned = trim(preg_replace($pattern, "", $content));
-                if ($cleaned === "") {
+                $cleaned = trim(preg_replace($pattern, '', $content));
+                if ($cleaned === '') {
                     File::delete($agentFile);
                     $this->info(
                         "  ✓ Berkas {$agentFileName} yang dibuat oleh Pasax dihapus.",
                     );
                 } else {
-                    File::put($agentFile, $cleaned . PHP_EOL);
+                    File::put($agentFile, $cleaned.PHP_EOL);
                     $this->info(
                         "  ✓ Panduan Pasax dibersihkan dari {$agentFileName}.",
                     );
@@ -719,24 +710,24 @@ class PasaxUninstallCommand extends Command
      */
     protected function removeDirectoryIfEmpty(string $dir): void
     {
-        if (!File::isDirectory($dir)) {
+        if (! File::isDirectory($dir)) {
             return;
         }
 
-        $entries = array_diff(scandir($dir) ?: [], [".", ".."]);
+        $entries = array_diff(scandir($dir) ?: [], ['.', '..']);
 
         if ($entries === []) {
             try {
                 File::deleteDirectory($dir);
                 $this->info(
-                    "  ✓ Direktori kosong dihapus: " .
+                    '  ✓ Direktori kosong dihapus: '.
                         $this->relativePath($dir),
                 );
             } catch (\Throwable $e) {
                 $this->warn(
-                    "  ⚠ Gagal menghapus direktori " .
-                        $dir .
-                        ": " .
+                    '  ⚠ Gagal menghapus direktori '.
+                        $dir.
+                        ': '.
                         $e->getMessage(),
                 );
             }
@@ -751,11 +742,11 @@ class PasaxUninstallCommand extends Command
     protected function removeBackupFiles(): void
     {
         $patterns = [
-            base_path("routes/pasax.php.backup-*"),
-            base_path("routes/pasax-api.php.backup-*"),
-            base_path("routes/pasax-service.php.backup-*"),
-            resource_path("views/pages/pasax.backup-*"),
-            public_path(".htaccess.backup-*"),
+            base_path('routes/pasax.php.backup-*'),
+            base_path('routes/pasax-api.php.backup-*'),
+            base_path('routes/pasax-service.php.backup-*'),
+            resource_path('views/pages/pasax.backup-*'),
+            public_path('.htaccess.backup-*'),
         ];
 
         foreach ($patterns as $pattern) {
@@ -767,14 +758,14 @@ class PasaxUninstallCommand extends Command
                         File::delete($path);
                     }
                     $this->info(
-                        "  ✓ Cadangan dihapus: " .
+                        '  ✓ Cadangan dihapus: '.
                             $this->relativePath((string) $path),
                     );
                 } catch (\Throwable $e) {
                     $this->warn(
-                        "  ⚠ Gagal menghapus cadangan " .
-                            $path .
-                            ": " .
+                        '  ⚠ Gagal menghapus cadangan '.
+                            $path.
+                            ': '.
                             $e->getMessage(),
                     );
                 }
@@ -784,7 +775,7 @@ class PasaxUninstallCommand extends Command
 
     protected function relativePath(string $path): string
     {
-        $base = base_path() . DIRECTORY_SEPARATOR;
+        $base = base_path().DIRECTORY_SEPARATOR;
 
         return str_starts_with($path, $base)
             ? substr($path, strlen($base))
@@ -801,32 +792,32 @@ class PasaxUninstallCommand extends Command
 
         if ($composer === null) {
             $this->line(
-                "  - Composer tidak ditemukan di PATH; jalankan manual: <fg=yellow>composer remove " .
-                    $pkgName .
-                    "</>",
+                '  - Composer tidak ditemukan di PATH; jalankan manual: <fg=yellow>composer remove '.
+                    $pkgName.
+                    '</>',
             );
 
             return;
         }
 
         $this->comment(
-            "  Melepas paket via Composer (perintah ini ikut terhapus bersamanya)...",
+            '  Melepas paket via Composer (perintah ini ikut terhapus bersamanya)...',
         );
         $code = 0;
         $cmd =
-            escapeshellcmd($composer) .
-            " remove " .
-            $pkgName .
-            " --no-interaction --no-audit 2>&1";
+            escapeshellcmd($composer).
+            ' remove '.
+            $pkgName.
+            ' --no-interaction --no-audit 2>&1';
         exec($cmd, $output, $code);
 
         if ($code === 0) {
             $this->info(
-                "  ✓ Paket " . $pkgName . " dilepas dari composer.json.",
+                '  ✓ Paket '.$pkgName.' dilepas dari composer.json.',
             );
         } else {
             $this->warn(
-                "  ⚠ composer remove gagal; jalankan manual: composer remove " .
+                '  ⚠ composer remove gagal; jalankan manual: composer remove '.
                     $pkgName,
             );
         }
@@ -834,31 +825,31 @@ class PasaxUninstallCommand extends Command
 
     protected function detectInstalledPackageName(): string
     {
-        $composerPath = base_path("composer.json");
+        $composerPath = base_path('composer.json');
         if (File::exists($composerPath)) {
             $c = File::get($composerPath);
-            if (str_contains($c, "pasax/secure-monitor")) {
-                return "pasax/secure-monitor";
+            if (str_contains($c, 'pasax/secure-monitor')) {
+                return 'pasax/secure-monitor';
             }
-            if (str_contains($c, "pasax-dev/pasax-secure-monitor-laravel")) {
-                return "pasax-dev/pasax-secure-monitor-laravel";
+            if (str_contains($c, 'pasax-dev/pasax-secure-monitor-laravel')) {
+                return 'pasax-dev/pasax-secure-monitor-laravel';
             }
-            if (str_contains($c, "robyajo/pasax")) {
-                return "robyajo/pasax";
+            if (str_contains($c, 'robyajo/pasax')) {
+                return 'robyajo/pasax';
             }
         }
 
-        return "pasax/secure-monitor";
+        return 'pasax/secure-monitor';
     }
 
     protected function findComposerBinary(): ?string
     {
-        if (File::exists(base_path("composer.phar"))) {
-            return PHP_BINARY . " " . base_path("composer.phar");
+        if (File::exists(base_path('composer.phar'))) {
+            return PHP_BINARY.' '.base_path('composer.phar');
         }
 
-        $composer = trim((string) shell_exec("command -v composer"));
+        $composer = trim((string) shell_exec('command -v composer'));
 
-        return $composer !== "" ? $composer : null;
+        return $composer !== '' ? $composer : null;
     }
 }

@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Route;
 use Pasax\SecureMonitor\Console\Commands\PasaxInstallCommand;
@@ -206,8 +207,8 @@ test('pasax install command persists owner identity and isolated database env ke
         }
     };
 
-    $this->app->instance(PasaxInstallCommand::class, $fakeInstallCommand);
-    $artisan = $this->app->make(Illuminate\Contracts\Console\Kernel::class);
+    app()->instance(PasaxInstallCommand::class, $fakeInstallCommand);
+    $artisan = app(Kernel::class);
     $artisan->registerCommand($fakeInstallCommand);
 
     $this->artisan('pasax:install', [

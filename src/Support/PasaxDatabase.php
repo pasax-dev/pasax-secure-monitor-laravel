@@ -10,7 +10,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
-use Pasax\SecureMonitor\Models\PasaxSetting;
 use RuntimeException;
 use Throwable;
 
@@ -24,11 +23,11 @@ use Throwable;
  */
 class PasaxDatabase
 {
-    public const DEFAULT_CONNECTION = "pasax_sqlite";
+    public const DEFAULT_CONNECTION = 'pasax_sqlite';
 
-    public const DEFAULT_RELATIVE_PATH = "storage/app/pasax/pasax.sqlite";
+    public const DEFAULT_RELATIVE_PATH = 'storage/app/pasax/pasax.sqlite';
 
-    public const DEFAULT_RELATIVE_BACKUP_DIR = "storage/app/pasax/backups";
+    public const DEFAULT_RELATIVE_BACKUP_DIR = 'storage/app/pasax/backups';
 
     /**
      * Lacak PDO yang sudah menerapkan PRAGMA WAL/busy_timeout agar tidak diulang.
@@ -45,20 +44,20 @@ class PasaxDatabase
     {
         try {
             $configured = config(
-                "pasax.database.connection",
+                'pasax.database.connection',
                 self::DEFAULT_CONNECTION,
             );
         } catch (Throwable) {
             $configured = self::DEFAULT_CONNECTION;
         }
 
-        if (!is_string($configured)) {
+        if (! is_string($configured)) {
             return null;
         }
 
         $trimmed = trim($configured);
 
-        if ($trimmed === "" || $trimmed === "default") {
+        if ($trimmed === '' || $trimmed === 'default') {
             return null;
         }
 
@@ -69,22 +68,22 @@ class PasaxDatabase
         if ($trimmed === self::DEFAULT_CONNECTION) {
             try {
                 if (app()->runningUnitTests()) {
-                    $defaultConn = (string) config("database.default", "");
+                    $defaultConn = (string) config('database.default', '');
                     $defaultDriver = (string) config(
                         "database.connections.{$defaultConn}.driver",
-                        "",
+                        '',
                     );
                     $defaultDb = (string) config(
                         "database.connections.{$defaultConn}.database",
-                        "",
+                        '',
                     );
 
                     if (
-                        $defaultDriver === "sqlite" &&
-                        $defaultDb === ":memory:"
+                        $defaultDriver === 'sqlite' &&
+                        $defaultDb === ':memory:'
                     ) {
                         $configuredPath = self::sqlitePath();
-                        $defaultPath = storage_path("app/pasax/pasax.sqlite");
+                        $defaultPath = storage_path('app/pasax/pasax.sqlite');
 
                         if ($configuredPath === $defaultPath) {
                             return null;
@@ -110,7 +109,7 @@ class PasaxDatabase
         }
 
         try {
-            $defaultConn = (string) config("database.default", "");
+            $defaultConn = (string) config('database.default', '');
         } catch (Throwable) {
             return true;
         }
@@ -127,7 +126,7 @@ class PasaxDatabase
 
         if ($conn === null) {
             try {
-                $conn = (string) config("database.default", "");
+                $conn = (string) config('database.default', '');
             } catch (Throwable) {
                 return false;
             }
@@ -140,10 +139,10 @@ class PasaxDatabase
         try {
             $driver = (string) config(
                 "database.connections.{$conn}.driver",
-                "",
+                '',
             );
 
-            return $driver === "sqlite";
+            return $driver === 'sqlite';
         } catch (Throwable) {
             return false;
         }
@@ -155,16 +154,16 @@ class PasaxDatabase
     public static function sqlitePath(): string
     {
         try {
-            $configured = config("pasax.database.path");
+            $configured = config('pasax.database.path');
         } catch (Throwable) {
             $configured = null;
         }
 
-        if (is_string($configured) && trim($configured) !== "") {
+        if (is_string($configured) && trim($configured) !== '') {
             return self::resolvePath(trim($configured));
         }
 
-        return storage_path("app/pasax/pasax.sqlite");
+        return storage_path('app/pasax/pasax.sqlite');
     }
 
     /**
@@ -173,16 +172,16 @@ class PasaxDatabase
     public static function backupDirectory(): string
     {
         try {
-            $configured = config("pasax.database.backup_path");
+            $configured = config('pasax.database.backup_path');
         } catch (Throwable) {
             $configured = null;
         }
 
-        if (is_string($configured) && trim($configured) !== "") {
+        if (is_string($configured) && trim($configured) !== '') {
             return self::resolvePath(trim($configured));
         }
 
-        return storage_path("app/pasax/backups");
+        return storage_path('app/pasax/backups');
     }
 
     /**
@@ -191,8 +190,8 @@ class PasaxDatabase
     public static function configureConnection(
         ?string $overridePath = null,
     ): void {
-        if ($overridePath !== null && trim($overridePath) !== "") {
-            config()->set("pasax.database.path", trim($overridePath));
+        if ($overridePath !== null && trim($overridePath) !== '') {
+            config()->set('pasax.database.path', trim($overridePath));
         }
 
         $connName = self::connectionName();
@@ -202,24 +201,24 @@ class PasaxDatabase
 
         if ($connName === self::DEFAULT_CONNECTION) {
             $sqlitePath = self::sqlitePath();
-            $wal = (bool) config("pasax.database.sqlite_wal", true);
+            $wal = (bool) config('pasax.database.sqlite_wal', true);
             $busyTimeout = max(
                 1000,
-                (int) config("pasax.database.sqlite_busy_timeout", 5000),
+                (int) config('pasax.database.sqlite_busy_timeout', 5000),
             );
 
             $existing = config("database.connections.{$connName}");
             $definition = [
-                "driver" => "sqlite",
-                "url" => null,
-                "database" => $sqlitePath,
-                "prefix" => is_array($existing)
-                    ? (string) ($existing["prefix"] ?? "")
-                    : "",
-                "foreign_key_constraints" => true,
-                "busy_timeout" => $busyTimeout,
-                "journal_mode" => $wal ? "WAL" : null,
-                "synchronous" => $wal ? "NORMAL" : null,
+                'driver' => 'sqlite',
+                'url' => null,
+                'database' => $sqlitePath,
+                'prefix' => is_array($existing)
+                    ? (string) ($existing['prefix'] ?? '')
+                    : '',
+                'foreign_key_constraints' => true,
+                'busy_timeout' => $busyTimeout,
+                'journal_mode' => $wal ? 'WAL' : null,
+                'synchronous' => $wal ? 'NORMAL' : null,
             ];
 
             config()->set("database.connections.{$connName}", $definition);
@@ -244,47 +243,47 @@ class PasaxDatabase
                 ? self::resolvePath($backupDir)
                 : self::backupDirectory();
         $baseDir =
-            $resolvedSqlite !== ":memory:"
+            $resolvedSqlite !== ':memory:'
                 ? dirname($resolvedSqlite)
-                : storage_path("app/pasax");
+                : storage_path('app/pasax');
 
-        if (!File::isDirectory($baseDir)) {
+        if (! File::isDirectory($baseDir)) {
             File::makeDirectory($baseDir, 0750, true, true);
         }
         @chmod($baseDir, 0750);
 
-        if (!File::isDirectory($resolvedBackupDir)) {
+        if (! File::isDirectory($resolvedBackupDir)) {
             File::makeDirectory($resolvedBackupDir, 0750, true, true);
         }
         @chmod($resolvedBackupDir, 0750);
 
-        $gitignorePath = $baseDir . DIRECTORY_SEPARATOR . ".gitignore";
+        $gitignorePath = $baseDir.DIRECTORY_SEPARATOR.'.gitignore';
         $gitignoreContent = "*.sqlite*\n*.db*\nbackups/\n!.gitignore\n";
         if (
-            !File::exists($gitignorePath) ||
+            ! File::exists($gitignorePath) ||
             File::get($gitignorePath) !== $gitignoreContent
         ) {
             File::put($gitignorePath, $gitignoreContent);
         }
 
         $createdFile = false;
-        if ($resolvedSqlite !== ":memory:" && !File::exists($resolvedSqlite)) {
-            File::put($resolvedSqlite, "");
+        if ($resolvedSqlite !== ':memory:' && ! File::exists($resolvedSqlite)) {
+            File::put($resolvedSqlite, '');
             @chmod($resolvedSqlite, 0640);
             $createdFile = true;
         } elseif (
-            $resolvedSqlite !== ":memory:" &&
+            $resolvedSqlite !== ':memory:' &&
             File::exists($resolvedSqlite)
         ) {
             @chmod($resolvedSqlite, 0640);
         }
 
         return [
-            "directory" => $baseDir,
-            "backup_directory" => $resolvedBackupDir,
-            "sqlite_path" => $resolvedSqlite,
-            "created_file" => $createdFile,
-            "gitignore_path" => $gitignorePath,
+            'directory' => $baseDir,
+            'backup_directory' => $resolvedBackupDir,
+            'sqlite_path' => $resolvedSqlite,
+            'created_file' => $createdFile,
+            'gitignore_path' => $gitignorePath,
         ];
     }
 
@@ -298,7 +297,7 @@ class PasaxDatabase
         $connName = self::connectionName();
         if (self::isSqlite($connName)) {
             $path = self::sqlitePath();
-            if ($path !== ":memory:") {
+            if ($path !== ':memory:') {
                 self::ensureStorageReady($path);
             }
         }
@@ -317,26 +316,26 @@ class PasaxDatabase
         bool $migrateHostDataIfEmpty = false,
     ): array {
         $connName = self::prepareForMigration();
-        if ($connName === null || !self::isSeparateConnection()) {
+        if ($connName === null || ! self::isSeparateConnection()) {
             return [
-                "migrated" => false,
-                "copied_rows" => 0,
-                "connection" => $connName,
+                'migrated' => false,
+                'copied_rows' => 0,
+                'connection' => $connName,
             ];
         }
 
         $targetSchema = self::schema();
         $logsTable = (string) config(
-            "pasax.table_names.pasax_logs",
-            "pasax_logs",
+            'pasax.table_names.pasax_logs',
+            'pasax_logs',
         );
         $blockedTable = (string) config(
-            "pasax.table_names.blocked_ips",
-            "pasax_blocked_ips",
+            'pasax.table_names.blocked_ips',
+            'pasax_blocked_ips',
         );
         $settingsTable = (string) config(
-            "pasax.table_names.settings",
-            "pasax_settings",
+            'pasax.table_names.settings',
+            'pasax_settings',
         );
 
         $schemaComplete =
@@ -345,14 +344,14 @@ class PasaxDatabase
             $targetSchema->hasTable($settingsTable);
 
         $migrated = false;
-        if (!$schemaComplete) {
-            $migrationsPath = dirname(__DIR__, 2) . "/database/migrations";
+        if (! $schemaComplete) {
+            $migrationsPath = dirname(__DIR__, 2).'/database/migrations';
             if (File::isDirectory($migrationsPath)) {
-                Artisan::call("migrate", [
-                    "--database" => $connName,
-                    "--path" => $migrationsPath,
-                    "--realpath" => true,
-                    "--force" => true,
+                Artisan::call('migrate', [
+                    '--database' => $connName,
+                    '--path' => $migrationsPath,
+                    '--realpath' => true,
+                    '--force' => true,
                 ]);
                 $migrated = true;
             }
@@ -366,9 +365,9 @@ class PasaxDatabase
         }
 
         return [
-            "migrated" => $migrated,
-            "copied_rows" => $copiedRows,
-            "connection" => $connName,
+            'migrated' => $migrated,
+            'copied_rows' => $copiedRows,
+            'connection' => $connName,
         ];
     }
 
@@ -380,8 +379,8 @@ class PasaxDatabase
         string $targetConnName,
     ): int {
         try {
-            $hostConnName = (string) config("database.default", "");
-            if ($hostConnName === "" || $hostConnName === $targetConnName) {
+            $hostConnName = (string) config('database.default', '');
+            if ($hostConnName === '' || $hostConnName === $targetConnName) {
                 return 0;
             }
 
@@ -393,36 +392,36 @@ class PasaxDatabase
             $tables = array_values(
                 array_unique([
                     (string) config(
-                        "pasax.table_names.settings",
-                        "pasax_settings",
+                        'pasax.table_names.settings',
+                        'pasax_settings',
                     ),
                     (string) config(
-                        "pasax.table_names.blocked_ips",
-                        "pasax_blocked_ips",
+                        'pasax.table_names.blocked_ips',
+                        'pasax_blocked_ips',
                     ),
                     (string) config(
-                        "pasax.table_names.allowed_ips",
-                        "pasax_allowed_ips",
+                        'pasax.table_names.allowed_ips',
+                        'pasax_allowed_ips',
                     ),
                     (string) config(
-                        "pasax.table_names.trusted_ips",
-                        "pasax_trusted_ips",
+                        'pasax.table_names.trusted_ips',
+                        'pasax_trusted_ips',
                     ),
                     (string) config(
-                        "pasax.table_names.ip_unblock_requests",
-                        "pasax_ip_unblock_requests",
+                        'pasax.table_names.ip_unblock_requests',
+                        'pasax_ip_unblock_requests',
                     ),
                     (string) config(
-                        "pasax.table_names.login_attempts",
-                        "pasax_login_attempts",
+                        'pasax.table_names.login_attempts',
+                        'pasax_login_attempts',
                     ),
                     (string) config(
-                        "pasax.table_names.user_logins",
-                        "pasax_user_logins",
+                        'pasax.table_names.user_logins',
+                        'pasax_user_logins',
                     ),
                     (string) config(
-                        "pasax.table_names.pasax_logs",
-                        "pasax_logs",
+                        'pasax.table_names.pasax_logs',
+                        'pasax_logs',
                     ),
                 ]),
             );
@@ -433,9 +432,9 @@ class PasaxDatabase
             try {
                 foreach ($tables as $table) {
                     if (
-                        $table === "" ||
-                        !$hostSchema->hasTable($table) ||
-                        !$targetSchema->hasTable($table)
+                        $table === '' ||
+                        ! $hostSchema->hasTable($table) ||
+                        ! $targetSchema->hasTable($table)
                     ) {
                         continue;
                     }
@@ -488,7 +487,7 @@ class PasaxDatabase
     /**
      * Dapatkan instance koneksi database Pasax dan terapkan PRAGMA SQLite jika relevan.
      */
-    public static function connection(): ConnectionInterface
+    public static function connection(): Connection
     {
         self::configureConnection();
 
@@ -498,8 +497,8 @@ class PasaxDatabase
             $path = self::sqlitePath();
             if (
                 $connName === self::DEFAULT_CONNECTION &&
-                $path !== ":memory:" &&
-                !is_file($path)
+                $path !== ':memory:' &&
+                ! is_file($path)
             ) {
                 self::ensureStorageReady($path);
             }
@@ -510,11 +509,12 @@ class PasaxDatabase
 
         if (
             $conn instanceof Connection &&
-            $conn->getDriverName() === "sqlite"
+            $conn->getDriverName() === 'sqlite'
         ) {
             self::applySqlitePragmas($conn);
         }
 
+        /** @var Connection $conn */
         return $conn;
     }
 
@@ -538,8 +538,8 @@ class PasaxDatabase
         ConnectionInterface $connection,
     ): void {
         if (
-            !($connection instanceof Connection) ||
-            $connection->getDriverName() !== "sqlite"
+            ! ($connection instanceof Connection) ||
+            $connection->getDriverName() !== 'sqlite'
         ) {
             return;
         }
@@ -554,16 +554,16 @@ class PasaxDatabase
 
             $busyTimeout = max(
                 1000,
-                (int) config("pasax.database.sqlite_busy_timeout", 5000),
+                (int) config('pasax.database.sqlite_busy_timeout', 5000),
             );
-            $wal = (bool) config("pasax.database.sqlite_wal", true);
+            $wal = (bool) config('pasax.database.sqlite_wal', true);
 
-            $pdo->exec("PRAGMA foreign_keys = ON");
+            $pdo->exec('PRAGMA foreign_keys = ON');
             $pdo->exec("PRAGMA busy_timeout = {$busyTimeout}");
 
             if ($wal) {
-                $pdo->exec("PRAGMA journal_mode = WAL");
-                $pdo->exec("PRAGMA synchronous = NORMAL");
+                $pdo->exec('PRAGMA journal_mode = WAL');
+                $pdo->exec('PRAGMA synchronous = NORMAL');
             }
 
             self::$initializedPdos[$pdoId] = true;
@@ -580,7 +580,7 @@ class PasaxDatabase
         ?string $connection,
         string $usersTable,
     ): bool {
-        if ($usersTable === "") {
+        if ($usersTable === '') {
             return false;
         }
 
@@ -604,11 +604,11 @@ class PasaxDatabase
         $owner = PasaxDashboardSecret::resolveOwnerIdentity();
 
         $candidate =
-            $owner["username"] ?:
-            ($owner["email"]
-                ? Str::before($owner["email"], "@")
-                : "") ?:
-            (string) config("pasax.dashboard.auth.username", "admin");
+            $owner['username'] ?:
+            ($owner['email']
+                ? Str::before($owner['email'], '@')
+                : '') ?:
+            (string) config('pasax.dashboard.auth.username', 'admin');
 
         return self::sanitizeAccountSlug($candidate);
     }
@@ -618,12 +618,12 @@ class PasaxDatabase
      */
     public static function sanitizeAccountSlug(string $account): string
     {
-        $base = str_contains($account, "@")
-            ? Str::before($account, "@")
+        $base = str_contains($account, '@')
+            ? Str::before($account, '@')
             : $account;
-        $slug = Str::slug($base, "-");
+        $slug = Str::slug($base, '-');
 
-        return $slug !== "" ? $slug : "admin";
+        return $slug !== '' ? $slug : 'admin';
     }
 
     /**
@@ -635,11 +635,11 @@ class PasaxDatabase
         ?string $account = null,
         ?string $outputPath = null,
     ): array {
-        if (!self::isSqlite()) {
+        if (! self::isSqlite()) {
             throw new RuntimeException(
-                "Snapshot SQLite otomatis hanya tersedia saat PASAX_DB_CONNECTION menggunakan driver SQLite (saat ini: " .
-                    (self::connectionName() ?? "default") .
-                    ").",
+                'Snapshot SQLite otomatis hanya tersedia saat PASAX_DB_CONNECTION menggunakan driver SQLite (saat ini: '.
+                    (self::connectionName() ?? 'default').
+                    ').',
             );
         }
 
@@ -647,65 +647,65 @@ class PasaxDatabase
         $accountSlug = self::sanitizeAccountSlug(
             $account ?? self::ownerIdentifier(),
         );
-        $timestamp = now()->format("Y-m-d-His");
+        $timestamp = now()->format('Y-m-d-His');
 
-        if ($outputPath !== null && trim($outputPath) !== "") {
+        if ($outputPath !== null && trim($outputPath) !== '') {
             $targetPath = self::resolvePath(trim($outputPath));
             if (is_dir($targetPath)) {
                 $targetPath =
-                    rtrim($targetPath, DIRECTORY_SEPARATOR) .
-                    DIRECTORY_SEPARATOR .
+                    rtrim($targetPath, DIRECTORY_SEPARATOR).
+                    DIRECTORY_SEPARATOR.
                     "pasax-{$accountSlug}-{$timestamp}.sqlite";
             }
             $parentDir = dirname($targetPath);
-            if (!File::isDirectory($parentDir)) {
+            if (! File::isDirectory($parentDir)) {
                 File::makeDirectory($parentDir, 0750, true, true);
             }
             if (File::exists($targetPath)) {
                 File::delete($targetPath);
             }
         } else {
-            $backupDir = $storage["backup_directory"];
+            $backupDir = $storage['backup_directory'];
             $targetPath =
-                $backupDir .
-                DIRECTORY_SEPARATOR .
+                $backupDir.
+                DIRECTORY_SEPARATOR.
                 "pasax-{$accountSlug}-{$timestamp}.sqlite";
             if (File::exists($targetPath)) {
                 $suffix = substr(bin2hex(random_bytes(2)), 0, 4);
                 $targetPath =
-                    $backupDir .
-                    DIRECTORY_SEPARATOR .
+                    $backupDir.
+                    DIRECTORY_SEPARATOR.
                     "pasax-{$accountSlug}-{$timestamp}-{$suffix}.sqlite";
             }
         }
 
         $conn = self::connection();
         $pdo = $conn->getPdo();
-        $method = "vacuum_into";
+        $method = 'vacuum_into';
 
         try {
-            $pdo->exec("VACUUM INTO " . $pdo->quote($targetPath));
+            $pdo->exec('VACUUM INTO '.$pdo->quote($targetPath));
         } catch (Throwable $vacuumError) {
             $sourcePath = self::sqlitePath();
-            if ($sourcePath === ":memory:" || !File::exists($sourcePath)) {
+            if ($sourcePath === ':memory:' || ! File::exists($sourcePath)) {
                 throw new RuntimeException(
-                    "Gagal membuat backup SQLite: " .
+                    'Gagal membuat backup SQLite: '.
                         $vacuumError->getMessage(),
                     0,
                     $vacuumError,
                 );
             }
 
-            $method = "wal_checkpoint_copy";
+            $method = 'wal_checkpoint_copy';
             try {
-                $pdo->exec("PRAGMA wal_checkpoint(TRUNCATE)");
+                $pdo->exec('PRAGMA wal_checkpoint(TRUNCATE)');
             } catch (Throwable) {
                 // Lanjutkan penyalinan berkas
             }
 
-            if (!File::copy($sourcePath, $targetPath)) {
+            if (! File::copy($sourcePath, $targetPath)) {
                 throw new RuntimeException(
-                    "Gagal menyalin berkas SQLite ke " . $targetPath,
+                    'Gagal menyalin berkas SQLite ke '.$targetPath,
                 );
             }
         }
@@ -715,19 +715,19 @@ class PasaxDatabase
 
         $size = File::exists($targetPath) ? (int) File::size($targetPath) : 0;
         $sha256 = File::exists($targetPath)
-            ? (string) hash_file("sha256", $targetPath)
-            : "";
+            ? (string) hash_file('sha256', $targetPath)
+            : '';
 
         return [
-            "success" => true,
-            "path" => $targetPath,
-            "filename" => basename($targetPath),
-            "size_bytes" => $size,
-            "size_human" => self::formatBytes($size),
-            "sha256" => $sha256,
-            "account" => $accountSlug,
-            "created_at" => now()->toIso8601String(),
-            "method" => $method,
+            'success' => true,
+            'path' => $targetPath,
+            'filename' => basename($targetPath),
+            'size_bytes' => $size,
+            'size_human' => self::formatBytes($size),
+            'sha256' => $sha256,
+            'account' => $accountSlug,
+            'created_at' => now()->toIso8601String(),
+            'method' => $method,
         ];
     }
 
@@ -739,33 +739,33 @@ class PasaxDatabase
     public static function listBackups(): array
     {
         $dir = self::backupDirectory();
-        if (!File::isDirectory($dir)) {
+        if (! File::isDirectory($dir)) {
             return [];
         }
 
-        $files = glob($dir . DIRECTORY_SEPARATOR . "*.sqlite") ?: [];
+        $files = glob($dir.DIRECTORY_SEPARATOR.'*.sqlite') ?: [];
         $items = [];
 
         foreach ($files as $file) {
-            if (!is_file($file)) {
+            if (! is_file($file)) {
                 continue;
             }
             $mtime = (int) filemtime($file);
             $size = (int) filesize($file);
             $items[] = [
-                "filename" => basename($file),
-                "path" => $file,
-                "size_bytes" => $size,
-                "size_human" => self::formatBytes($size),
-                "modified_at" => date("Y-m-d H:i:s", $mtime),
-                "timestamp" => $mtime,
+                'filename' => basename($file),
+                'path' => $file,
+                'size_bytes' => $size,
+                'size_human' => self::formatBytes($size),
+                'modified_at' => date('Y-m-d H:i:s', $mtime),
+                'timestamp' => $mtime,
             ];
         }
 
         usort(
             $items,
-            static fn(array $a, array $b): int => $b["timestamp"] <=>
-                $a["timestamp"],
+            static fn (array $a, array $b): int => $b['timestamp'] <=>
+                $a['timestamp'],
         );
 
         return $items;
@@ -789,7 +789,7 @@ class PasaxDatabase
         $deleted = 0;
 
         foreach ($toDelete as $item) {
-            if (File::exists($item["path"]) && File::delete($item["path"])) {
+            if (File::exists($item['path']) && File::delete($item['path'])) {
                 $deleted++;
             }
         }
@@ -824,59 +824,59 @@ class PasaxDatabase
         self::configureConnection();
         $connName =
             self::connectionName() ??
-            (string) config("database.default", "mysql");
+            (string) config('database.default', 'mysql');
         $isSqlite = self::isSqlite($connName);
         $driver = $isSqlite
-            ? "sqlite"
+            ? 'sqlite'
             : (string) config(
                 "database.connections.{$connName}.driver",
                 $connName,
             );
         $path = $isSqlite
             ? self::sqlitePath()
-            : (string) config("database.connections.{$connName}.database", "");
+            : (string) config("database.connections.{$connName}.database", '');
         $backupDir = self::backupDirectory();
-        $exists = $isSqlite && $path !== ":memory:" ? is_file($path) : false;
+        $exists = $isSqlite && $path !== ':memory:' ? is_file($path) : false;
         $size = $exists ? (int) filesize($path) : 0;
-        $walMode = "n/a";
+        $walMode = 'n/a';
         $walEnabled = false;
 
-        if ($isSqlite && ($exists || $path === ":memory:")) {
+        if ($isSqlite && ($exists || $path === ':memory:')) {
             try {
-                $row = self::connection()->selectOne("PRAGMA journal_mode");
+                $row = self::connection()->selectOne('PRAGMA journal_mode');
                 $arr = is_object($row)
                     ? (array) $row
                     : (is_array($row)
                         ? $row
                         : []);
                 $walMode = strtolower((string) reset($arr));
-                $walEnabled = $walMode === "wal";
+                $walEnabled = $walMode === 'wal';
             } catch (Throwable) {
-                $walMode = "unknown";
+                $walMode = 'unknown';
             }
         }
 
         $backups = self::listBackups();
 
         return [
-            "connection" => $connName,
-            "driver" => $driver,
-            "is_sqlite" => $isSqlite,
-            "is_isolated" => self::isSeparateConnection(),
-            "path" => $path,
-            "relative_path" => self::toRelativePath($path),
-            "exists" => $exists,
-            "writable" => $exists
+            'connection' => $connName,
+            'driver' => $driver,
+            'is_sqlite' => $isSqlite,
+            'is_isolated' => self::isSeparateConnection(),
+            'path' => $path,
+            'relative_path' => self::toRelativePath($path),
+            'exists' => $exists,
+            'writable' => $exists
                 ? is_writable($path)
                 : is_dir(dirname($path)) && is_writable(dirname($path)),
-            "size_bytes" => $size,
-            "size_human" => self::formatBytes($size),
-            "journal_mode" => $walMode,
-            "wal_enabled" => $walEnabled,
-            "backup_dir" => $backupDir,
-            "relative_backup_dir" => self::toRelativePath($backupDir),
-            "backup_count" => count($backups),
-            "owner_identifier" => self::ownerIdentifier(),
+            'size_bytes' => $size,
+            'size_human' => self::formatBytes($size),
+            'journal_mode' => $walMode,
+            'wal_enabled' => $walEnabled,
+            'backup_dir' => $backupDir,
+            'relative_backup_dir' => self::toRelativePath($backupDir),
+            'backup_count' => count($backups),
+            'owner_identifier' => self::ownerIdentifier(),
         ];
     }
 
@@ -885,23 +885,23 @@ class PasaxDatabase
      */
     public static function resolvePath(string $path): string
     {
-        if ($path === ":memory:") {
+        if ($path === ':memory:') {
             return $path;
         }
 
         if (
-            str_starts_with($path, "/") ||
-            preg_match("/^[A-Za-z]:[\\\\\\/]/", $path) === 1
+            str_starts_with($path, '/') ||
+            preg_match('/^[A-Za-z]:[\\\\\\/]/', $path) === 1
         ) {
             return $path;
         }
 
-        return base_path(ltrim($path, "/\\"));
+        return base_path(ltrim($path, '/\\'));
     }
 
     public static function toRelativePath(string $path): string
     {
-        $base = rtrim(base_path(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+        $base = rtrim(base_path(), DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR;
 
         return str_starts_with($path, $base)
             ? substr($path, strlen($base))
@@ -911,15 +911,15 @@ class PasaxDatabase
     public static function formatBytes(int $bytes): string
     {
         if ($bytes < 1024) {
-            return $bytes . " B";
+            return $bytes.' B';
         }
         if ($bytes < 1048576) {
-            return number_format($bytes / 1024, 1) . " KB";
+            return number_format($bytes / 1024, 1).' KB';
         }
         if ($bytes < 1073741824) {
-            return number_format($bytes / 1048576, 2) . " MB";
+            return number_format($bytes / 1048576, 2).' MB';
         }
 
-        return number_format($bytes / 1073741824, 2) . " GB";
+        return number_format($bytes / 1073741824, 2).' GB';
     }
 }

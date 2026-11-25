@@ -5,7 +5,8 @@ use Illuminate\Support\Facades\Schema;
 use Pasax\SecureMonitor\Concerns\ResolvesPasaxTable;
 use Pasax\SecureMonitor\Support\PasaxDatabase;
 
-return new class extends Migration {
+return new class extends Migration
+{
     public function getConnection(): ?string
     {
         return PasaxDatabase::prepareForMigration();
@@ -19,37 +20,37 @@ return new class extends Migration {
     protected function tableMap(): array
     {
         return [
-            "blocked_ips" => config(
-                "pasax.table_names.blocked_ips",
-                "pasax_blocked_ips",
+            'blocked_ips' => config(
+                'pasax.table_names.blocked_ips',
+                'pasax_blocked_ips',
             ),
-            "login_attempts" => config(
-                "pasax.table_names.login_attempts",
-                "pasax_login_attempts",
+            'login_attempts' => config(
+                'pasax.table_names.login_attempts',
+                'pasax_login_attempts',
             ),
-            "ip_unblock_requests" => config(
-                "pasax.table_names.ip_unblock_requests",
-                "pasax_ip_unblock_requests",
+            'ip_unblock_requests' => config(
+                'pasax.table_names.ip_unblock_requests',
+                'pasax_ip_unblock_requests',
             ),
-            "user_logins" => config(
-                "pasax.table_names.user_logins",
-                "pasax_user_logins",
+            'user_logins' => config(
+                'pasax.table_names.user_logins',
+                'pasax_user_logins',
             ),
-            "trusted_ips" => config(
-                "pasax.table_names.trusted_ips",
-                "pasax_trusted_ips",
+            'trusted_ips' => config(
+                'pasax.table_names.trusted_ips',
+                'pasax_trusted_ips',
             ),
-            "allowed_ips" => config(
-                "pasax.table_names.allowed_ips",
-                "pasax_allowed_ips",
+            'allowed_ips' => config(
+                'pasax.table_names.allowed_ips',
+                'pasax_allowed_ips',
             ),
-            "security_logs" => config(
-                "pasax.table_names.pasax_logs",
-                "pasax_logs",
+            'security_logs' => config(
+                'pasax.table_names.pasax_logs',
+                'pasax_logs',
             ),
-            "security_settings" => config(
-                "pasax.table_names.settings",
-                "pasax_settings",
+            'security_settings' => config(
+                'pasax.table_names.settings',
+                'pasax_settings',
             ),
         ];
     }
@@ -68,7 +69,7 @@ return new class extends Migration {
                 if (
                     $legacy !== $current &&
                     $schema->hasTable($legacy) &&
-                    !$schema->hasTable($current)
+                    ! $schema->hasTable($current)
                 ) {
                     $schema->rename($legacy, $current);
                 }
@@ -94,7 +95,7 @@ return new class extends Migration {
                 if (
                     $legacy !== $current &&
                     $schema->hasTable($current) &&
-                    !$schema->hasTable($legacy)
+                    ! $schema->hasTable($legacy)
                 ) {
                     $schema->rename($current, $legacy);
                 }

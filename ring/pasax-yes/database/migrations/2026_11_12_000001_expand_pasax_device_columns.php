@@ -5,7 +5,8 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 use Pasax\SecureMonitor\Support\PasaxDatabase;
 
-return new class extends Migration {
+return new class extends Migration
+{
     public function getConnection(): ?string
     {
         return PasaxDatabase::prepareForMigration();
@@ -21,26 +22,26 @@ return new class extends Migration {
         $driver = $connection->getDriverName();
 
         $trustedTables = array_unique([
-            config("pasax.table_names.trusted_ips", "pasax_trusted_ips"),
-            "pasax_trusted_ips",
-            "trusted_ips",
+            config('pasax.table_names.trusted_ips', 'pasax_trusted_ips'),
+            'pasax_trusted_ips',
+            'trusted_ips',
         ]);
 
         foreach ($trustedTables as $table) {
             if ($schema->hasTable($table)) {
                 // SQLite tidak menerapkan batas karakter VARCHAR secara ketat
                 // dan tidak memerlukan Doctrine DBAL untuk ubah kolom.
-                if ($driver === "sqlite") {
+                if ($driver === 'sqlite') {
                     continue;
                 }
 
-                if ($driver === "mysql" || $driver === "mariadb") {
-                    if ($schema->hasColumn($table, "operating_system")) {
+                if ($driver === 'mysql' || $driver === 'mariadb') {
+                    if ($schema->hasColumn($table, 'operating_system')) {
                         $connection->statement(
                             "ALTER TABLE `{$table}` MODIFY `operating_system` VARCHAR(255) NULL",
                         );
                     }
-                    if ($schema->hasColumn($table, "browser")) {
+                    if ($schema->hasColumn($table, 'browser')) {
                         $connection->statement(
                             "ALTER TABLE `{$table}` MODIFY `browser` VARCHAR(255) NULL",
                         );
@@ -49,13 +50,13 @@ return new class extends Migration {
                     continue;
                 }
 
-                if ($driver === "pgsql") {
-                    if ($schema->hasColumn($table, "operating_system")) {
+                if ($driver === 'pgsql') {
+                    if ($schema->hasColumn($table, 'operating_system')) {
                         $connection->statement(
                             "ALTER TABLE \"{$table}\" ALTER COLUMN \"operating_system\" TYPE VARCHAR(255)",
                         );
                     }
-                    if ($schema->hasColumn($table, "browser")) {
+                    if ($schema->hasColumn($table, 'browser')) {
                         $connection->statement(
                             "ALTER TABLE \"{$table}\" ALTER COLUMN \"browser\" TYPE VARCHAR(255)",
                         );
@@ -69,15 +70,15 @@ return new class extends Migration {
                         $schema,
                         $table,
                     ) {
-                        if ($schema->hasColumn($table, "operating_system")) {
+                        if ($schema->hasColumn($table, 'operating_system')) {
                             $blueprint
-                                ->string("operating_system", 255)
+                                ->string('operating_system', 255)
                                 ->nullable()
                                 ->change();
                         }
-                        if ($schema->hasColumn($table, "browser")) {
+                        if ($schema->hasColumn($table, 'browser')) {
                             $blueprint
-                                ->string("browser", 255)
+                                ->string('browser', 255)
                                 ->nullable()
                                 ->change();
                         }
@@ -89,24 +90,24 @@ return new class extends Migration {
         }
 
         $loginTables = array_unique([
-            config("pasax.table_names.user_logins", "pasax_user_logins"),
-            "pasax_user_logins",
-            "user_logins",
+            config('pasax.table_names.user_logins', 'pasax_user_logins'),
+            'pasax_user_logins',
+            'user_logins',
         ]);
 
         foreach ($loginTables as $table) {
             if ($schema->hasTable($table)) {
-                if ($driver === "sqlite") {
+                if ($driver === 'sqlite') {
                     continue;
                 }
 
-                if ($driver === "mysql" || $driver === "mariadb") {
-                    if ($schema->hasColumn($table, "operating_system")) {
+                if ($driver === 'mysql' || $driver === 'mariadb') {
+                    if ($schema->hasColumn($table, 'operating_system')) {
                         $connection->statement(
                             "ALTER TABLE `{$table}` MODIFY `operating_system` VARCHAR(255) NOT NULL DEFAULT 'Unknown OS'",
                         );
                     }
-                    if ($schema->hasColumn($table, "browser")) {
+                    if ($schema->hasColumn($table, 'browser')) {
                         $connection->statement(
                             "ALTER TABLE `{$table}` MODIFY `browser` VARCHAR(255) NOT NULL DEFAULT 'Unknown Browser'",
                         );
@@ -115,13 +116,13 @@ return new class extends Migration {
                     continue;
                 }
 
-                if ($driver === "pgsql") {
-                    if ($schema->hasColumn($table, "operating_system")) {
+                if ($driver === 'pgsql') {
+                    if ($schema->hasColumn($table, 'operating_system')) {
                         $connection->statement(
                             "ALTER TABLE \"{$table}\" ALTER COLUMN \"operating_system\" TYPE VARCHAR(255)",
                         );
                     }
-                    if ($schema->hasColumn($table, "browser")) {
+                    if ($schema->hasColumn($table, 'browser')) {
                         $connection->statement(
                             "ALTER TABLE \"{$table}\" ALTER COLUMN \"browser\" TYPE VARCHAR(255)",
                         );
@@ -135,16 +136,16 @@ return new class extends Migration {
                         $schema,
                         $table,
                     ) {
-                        if ($schema->hasColumn($table, "operating_system")) {
+                        if ($schema->hasColumn($table, 'operating_system')) {
                             $blueprint
-                                ->string("operating_system", 255)
-                                ->default("Unknown OS")
+                                ->string('operating_system', 255)
+                                ->default('Unknown OS')
                                 ->change();
                         }
-                        if ($schema->hasColumn($table, "browser")) {
+                        if ($schema->hasColumn($table, 'browser')) {
                             $blueprint
-                                ->string("browser", 255)
-                                ->default("Unknown Browser")
+                                ->string('browser', 255)
+                                ->default('Unknown Browser')
                                 ->change();
                         }
                     });
@@ -165,24 +166,24 @@ return new class extends Migration {
         $driver = $connection->getDriverName();
 
         $trustedTables = array_unique([
-            config("pasax.table_names.trusted_ips", "pasax_trusted_ips"),
-            "pasax_trusted_ips",
-            "trusted_ips",
+            config('pasax.table_names.trusted_ips', 'pasax_trusted_ips'),
+            'pasax_trusted_ips',
+            'trusted_ips',
         ]);
 
         foreach ($trustedTables as $table) {
             if ($schema->hasTable($table)) {
-                if ($driver === "sqlite") {
+                if ($driver === 'sqlite') {
                     continue;
                 }
 
-                if ($driver === "mysql" || $driver === "mariadb") {
-                    if ($schema->hasColumn($table, "operating_system")) {
+                if ($driver === 'mysql' || $driver === 'mariadb') {
+                    if ($schema->hasColumn($table, 'operating_system')) {
                         $connection->statement(
                             "ALTER TABLE `{$table}` MODIFY `operating_system` VARCHAR(100) NULL",
                         );
                     }
-                    if ($schema->hasColumn($table, "browser")) {
+                    if ($schema->hasColumn($table, 'browser')) {
                         $connection->statement(
                             "ALTER TABLE `{$table}` MODIFY `browser` VARCHAR(100) NULL",
                         );
@@ -191,13 +192,13 @@ return new class extends Migration {
                     continue;
                 }
 
-                if ($driver === "pgsql") {
-                    if ($schema->hasColumn($table, "operating_system")) {
+                if ($driver === 'pgsql') {
+                    if ($schema->hasColumn($table, 'operating_system')) {
                         $connection->statement(
                             "ALTER TABLE \"{$table}\" ALTER COLUMN \"operating_system\" TYPE VARCHAR(100)",
                         );
                     }
-                    if ($schema->hasColumn($table, "browser")) {
+                    if ($schema->hasColumn($table, 'browser')) {
                         $connection->statement(
                             "ALTER TABLE \"{$table}\" ALTER COLUMN \"browser\" TYPE VARCHAR(100)",
                         );
@@ -211,15 +212,15 @@ return new class extends Migration {
                         $schema,
                         $table,
                     ) {
-                        if ($schema->hasColumn($table, "operating_system")) {
+                        if ($schema->hasColumn($table, 'operating_system')) {
                             $blueprint
-                                ->string("operating_system", 100)
+                                ->string('operating_system', 100)
                                 ->nullable()
                                 ->change();
                         }
-                        if ($schema->hasColumn($table, "browser")) {
+                        if ($schema->hasColumn($table, 'browser')) {
                             $blueprint
-                                ->string("browser", 100)
+                                ->string('browser', 100)
                                 ->nullable()
                                 ->change();
                         }
@@ -231,24 +232,24 @@ return new class extends Migration {
         }
 
         $loginTables = array_unique([
-            config("pasax.table_names.user_logins", "pasax_user_logins"),
-            "pasax_user_logins",
-            "user_logins",
+            config('pasax.table_names.user_logins', 'pasax_user_logins'),
+            'pasax_user_logins',
+            'user_logins',
         ]);
 
         foreach ($loginTables as $table) {
             if ($schema->hasTable($table)) {
-                if ($driver === "sqlite") {
+                if ($driver === 'sqlite') {
                     continue;
                 }
 
-                if ($driver === "mysql" || $driver === "mariadb") {
-                    if ($schema->hasColumn($table, "operating_system")) {
+                if ($driver === 'mysql' || $driver === 'mariadb') {
+                    if ($schema->hasColumn($table, 'operating_system')) {
                         $connection->statement(
                             "ALTER TABLE `{$table}` MODIFY `operating_system` VARCHAR(100) NOT NULL DEFAULT 'Unknown OS'",
                         );
                     }
-                    if ($schema->hasColumn($table, "browser")) {
+                    if ($schema->hasColumn($table, 'browser')) {
                         $connection->statement(
                             "ALTER TABLE `{$table}` MODIFY `browser` VARCHAR(100) NOT NULL DEFAULT 'Unknown Browser'",
                         );
@@ -257,13 +258,13 @@ return new class extends Migration {
                     continue;
                 }
 
-                if ($driver === "pgsql") {
-                    if ($schema->hasColumn($table, "operating_system")) {
+                if ($driver === 'pgsql') {
+                    if ($schema->hasColumn($table, 'operating_system')) {
                         $connection->statement(
                             "ALTER TABLE \"{$table}\" ALTER COLUMN \"operating_system\" TYPE VARCHAR(100)",
                         );
                     }
-                    if ($schema->hasColumn($table, "browser")) {
+                    if ($schema->hasColumn($table, 'browser')) {
                         $connection->statement(
                             "ALTER TABLE \"{$table}\" ALTER COLUMN \"browser\" TYPE VARCHAR(100)",
                         );
@@ -277,16 +278,16 @@ return new class extends Migration {
                         $schema,
                         $table,
                     ) {
-                        if ($schema->hasColumn($table, "operating_system")) {
+                        if ($schema->hasColumn($table, 'operating_system')) {
                             $blueprint
-                                ->string("operating_system", 100)
-                                ->default("Unknown OS")
+                                ->string('operating_system', 100)
+                                ->default('Unknown OS')
                                 ->change();
                         }
-                        if ($schema->hasColumn($table, "browser")) {
+                        if ($schema->hasColumn($table, 'browser')) {
                             $blueprint
-                                ->string("browser", 100)
-                                ->default("Unknown Browser")
+                                ->string('browser', 100)
+                                ->default('Unknown Browser')
                                 ->change();
                         }
                     });

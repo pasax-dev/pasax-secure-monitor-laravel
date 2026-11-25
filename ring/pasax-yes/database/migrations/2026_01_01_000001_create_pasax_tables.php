@@ -5,7 +5,8 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 use Pasax\SecureMonitor\Support\PasaxDatabase;
 
-return new class extends Migration {
+return new class extends Migration
+{
     public function getConnection(): ?string
     {
         return PasaxDatabase::prepareForMigration();
@@ -16,39 +17,39 @@ return new class extends Migration {
         $connName = $this->getConnection();
         $schema = Schema::connection($connName);
 
-        $usersTable = (string) config("pasax.table_names.users", "users");
+        $usersTable = (string) config('pasax.table_names.users', 'users');
         $hasUsersTable = PasaxDatabase::hasForeignUsersTable(
             $connName,
             $usersTable,
         );
         $blockedIpsTable = config(
-            "pasax.table_names.blocked_ips",
-            "pasax_blocked_ips",
+            'pasax.table_names.blocked_ips',
+            'pasax_blocked_ips',
         );
         $logsTable = config(
-            "pasax.table_names.pasax_logs",
-            config("pasax.table_names.security_logs", "pasax_logs"),
+            'pasax.table_names.pasax_logs',
+            config('pasax.table_names.security_logs', 'pasax_logs'),
         );
         $loginAttemptsTable = config(
-            "pasax.table_names.login_attempts",
-            "pasax_login_attempts",
+            'pasax.table_names.login_attempts',
+            'pasax_login_attempts',
         );
         $unblockRequestsTable = config(
-            "pasax.table_names.ip_unblock_requests",
-            "pasax_ip_unblock_requests",
+            'pasax.table_names.ip_unblock_requests',
+            'pasax_ip_unblock_requests',
         );
         $userLoginsTable = config(
-            "pasax.table_names.user_logins",
-            "pasax_user_logins",
+            'pasax.table_names.user_logins',
+            'pasax_user_logins',
         );
         $trustedIpsTable = config(
-            "pasax.table_names.trusted_ips",
-            "pasax_trusted_ips",
+            'pasax.table_names.trusted_ips',
+            'pasax_trusted_ips',
         );
-        $settingsTable = config("pasax.table_names.settings", "pasax_settings");
+        $settingsTable = config('pasax.table_names.settings', 'pasax_settings');
         $allowedIpsTable = config(
-            "pasax.table_names.allowed_ips",
-            "pasax_allowed_ips",
+            'pasax.table_names.allowed_ips',
+            'pasax_allowed_ips',
         );
 
         // Seamless upgrade from robyajo/pasax installs predating the rename / prefix:
@@ -57,21 +58,20 @@ return new class extends Migration {
         try {
             foreach (
                 [
-                    "security_logs" => $logsTable,
-                    "security_settings" => $settingsTable,
-                    "blocked_ips" => $blockedIpsTable,
-                    "login_attempts" => $loginAttemptsTable,
-                    "ip_unblock_requests" => $unblockRequestsTable,
-                    "user_logins" => $userLoginsTable,
-                    "trusted_ips" => $trustedIpsTable,
-                    "allowed_ips" => $allowedIpsTable,
-                ]
-                as $legacy => $current
+                    'security_logs' => $logsTable,
+                    'security_settings' => $settingsTable,
+                    'blocked_ips' => $blockedIpsTable,
+                    'login_attempts' => $loginAttemptsTable,
+                    'ip_unblock_requests' => $unblockRequestsTable,
+                    'user_logins' => $userLoginsTable,
+                    'trusted_ips' => $trustedIpsTable,
+                    'allowed_ips' => $allowedIpsTable,
+                ] as $legacy => $current
             ) {
                 if (
                     $legacy !== $current &&
                     $schema->hasTable($legacy) &&
-                    !$schema->hasTable($current)
+                    ! $schema->hasTable($current)
                 ) {
                     $schema->rename($legacy, $current);
                 }
@@ -80,241 +80,241 @@ return new class extends Migration {
             $schema->enableForeignKeyConstraints();
         }
 
-        if (!$schema->hasTable($blockedIpsTable)) {
+        if (! $schema->hasTable($blockedIpsTable)) {
             $schema->create($blockedIpsTable, function (
                 Blueprint $blueprint,
             ) use ($usersTable, $hasUsersTable) {
                 $blueprint->id();
-                $blueprint->string("ip_address", 45);
-                $blueprint->string("local_ip", 45)->nullable();
-                $blueprint->string("device_id", 100)->nullable()->index();
-                $blueprint->string("block_scope", 20)->default("ip");
-                $blueprint->string("reason")->nullable();
-                $blueprint->text("notes")->nullable();
-                $blueprint->string("source", 20)->default("manual");
+                $blueprint->string('ip_address', 45);
+                $blueprint->string('local_ip', 45)->nullable();
+                $blueprint->string('device_id', 100)->nullable()->index();
+                $blueprint->string('block_scope', 20)->default('ip');
+                $blueprint->string('reason')->nullable();
+                $blueprint->text('notes')->nullable();
+                $blueprint->string('source', 20)->default('manual');
                 if ($hasUsersTable) {
                     $blueprint
-                        ->foreignId("blocked_by")
+                        ->foreignId('blocked_by')
                         ->nullable()
                         ->constrained($usersTable)
                         ->nullOnDelete();
                 } else {
                     $blueprint
-                        ->unsignedBigInteger("blocked_by")
+                        ->unsignedBigInteger('blocked_by')
                         ->nullable()
                         ->index();
                 }
-                $blueprint->timestamp("blocked_at")->nullable();
-                $blueprint->timestamp("expires_at")->nullable();
-                $blueprint->boolean("is_active")->default(true);
-                $blueprint->unsignedInteger("hit_count")->default(0);
-                $blueprint->timestamp("last_hit_at")->nullable();
+                $blueprint->timestamp('blocked_at')->nullable();
+                $blueprint->timestamp('expires_at')->nullable();
+                $blueprint->boolean('is_active')->default(true);
+                $blueprint->unsignedInteger('hit_count')->default(0);
+                $blueprint->timestamp('last_hit_at')->nullable();
                 $blueprint->timestamps();
 
-                $blueprint->index(["is_active", "ip_address"]);
-                $blueprint->index("expires_at");
+                $blueprint->index(['is_active', 'ip_address']);
+                $blueprint->index('expires_at');
             });
         }
 
-        if (!$schema->hasTable($logsTable)) {
+        if (! $schema->hasTable($logsTable)) {
             $schema->create($logsTable, function (Blueprint $blueprint) use (
                 $usersTable,
                 $hasUsersTable,
             ) {
                 $blueprint->id();
-                $blueprint->string("ip_address", 45)->index();
-                $blueprint->string("local_ip", 45)->nullable();
-                $blueprint->string("device_id", 100)->nullable()->index();
+                $blueprint->string('ip_address', 45)->index();
+                $blueprint->string('local_ip', 45)->nullable();
+                $blueprint->string('device_id', 100)->nullable()->index();
                 if ($hasUsersTable) {
                     $blueprint
-                        ->foreignId("user_id")
+                        ->foreignId('user_id')
                         ->nullable()
                         ->constrained($usersTable)
                         ->nullOnDelete();
                 } else {
                     $blueprint
-                        ->unsignedBigInteger("user_id")
+                        ->unsignedBigInteger('user_id')
                         ->nullable()
                         ->index();
                 }
-                $blueprint->string("event_type", 40)->index();
-                $blueprint->string("threat_level", 20)->default("low")->index();
-                $blueprint->string("method", 10)->nullable();
-                $blueprint->string("path", 2048)->nullable();
-                $blueprint->text("full_url")->nullable();
-                $blueprint->string("rule_label")->nullable();
-                $blueprint->text("evidence")->nullable();
-                $blueprint->string("user_agent", 512)->nullable();
-                $blueprint->string("referer", 512)->nullable();
-                $blueprint->boolean("was_blocked")->default(false);
-                $blueprint->string("action_taken", 40)->nullable();
-                $blueprint->json("meta")->nullable();
+                $blueprint->string('event_type', 40)->index();
+                $blueprint->string('threat_level', 20)->default('low')->index();
+                $blueprint->string('method', 10)->nullable();
+                $blueprint->string('path', 2048)->nullable();
+                $blueprint->text('full_url')->nullable();
+                $blueprint->string('rule_label')->nullable();
+                $blueprint->text('evidence')->nullable();
+                $blueprint->string('user_agent', 512)->nullable();
+                $blueprint->string('referer', 512)->nullable();
+                $blueprint->boolean('was_blocked')->default(false);
+                $blueprint->string('action_taken', 40)->nullable();
+                $blueprint->json('meta')->nullable();
                 $blueprint->timestamps();
 
-                $blueprint->index(["ip_address", "created_at"]);
-                $blueprint->index(["threat_level", "created_at"]);
-                $blueprint->index("created_at");
+                $blueprint->index(['ip_address', 'created_at']);
+                $blueprint->index(['threat_level', 'created_at']);
+                $blueprint->index('created_at');
             });
         }
 
-        if (!$schema->hasTable($loginAttemptsTable)) {
+        if (! $schema->hasTable($loginAttemptsTable)) {
             $schema->create($loginAttemptsTable, function (
                 Blueprint $blueprint,
             ) {
                 $blueprint->id();
-                $blueprint->string("email")->nullable();
-                $blueprint->string("ip_address", 45)->nullable();
-                $blueprint->unsignedInteger("attempts")->default(0);
-                $blueprint->unsignedInteger("lockout_level")->default(0);
-                $blueprint->timestamp("locked_until")->nullable();
-                $blueprint->timestamp("last_attempt_at")->nullable();
+                $blueprint->string('email')->nullable();
+                $blueprint->string('ip_address', 45)->nullable();
+                $blueprint->unsignedInteger('attempts')->default(0);
+                $blueprint->unsignedInteger('lockout_level')->default(0);
+                $blueprint->timestamp('locked_until')->nullable();
+                $blueprint->timestamp('last_attempt_at')->nullable();
                 $blueprint->timestamps();
 
-                $blueprint->unique(["email", "ip_address"]);
-                $blueprint->index("locked_until");
-                $blueprint->index("last_attempt_at");
+                $blueprint->unique(['email', 'ip_address']);
+                $blueprint->index('locked_until');
+                $blueprint->index('last_attempt_at');
             });
         }
 
-        if (!$schema->hasTable($unblockRequestsTable)) {
+        if (! $schema->hasTable($unblockRequestsTable)) {
             $schema->create($unblockRequestsTable, function (
                 Blueprint $blueprint,
             ) use ($usersTable, $blockedIpsTable, $hasUsersTable) {
                 $blueprint->id();
-                $blueprint->string("ticket_number", 40)->unique();
-                $blueprint->string("ip_address", 45)->index();
-                $blueprint->string("local_ip", 45)->nullable();
-                $blueprint->string("device_id", 100)->nullable()->index();
-                $blueprint->string("name", 100);
-                $blueprint->string("email", 150);
-                $blueprint->string("phone", 30)->nullable();
-                $blueprint->text("reason");
-                $blueprint->string("status", 20)->default("pending")->index();
-                $blueprint->text("admin_notes")->nullable();
+                $blueprint->string('ticket_number', 40)->unique();
+                $blueprint->string('ip_address', 45)->index();
+                $blueprint->string('local_ip', 45)->nullable();
+                $blueprint->string('device_id', 100)->nullable()->index();
+                $blueprint->string('name', 100);
+                $blueprint->string('email', 150);
+                $blueprint->string('phone', 30)->nullable();
+                $blueprint->text('reason');
+                $blueprint->string('status', 20)->default('pending')->index();
+                $blueprint->text('admin_notes')->nullable();
                 if ($hasUsersTable) {
                     $blueprint
-                        ->foreignId("resolved_by")
+                        ->foreignId('resolved_by')
                         ->nullable()
                         ->constrained($usersTable)
                         ->nullOnDelete();
                 } else {
                     $blueprint
-                        ->unsignedBigInteger("resolved_by")
+                        ->unsignedBigInteger('resolved_by')
                         ->nullable()
                         ->index();
                 }
-                $blueprint->timestamp("resolved_at")->nullable();
+                $blueprint->timestamp('resolved_at')->nullable();
                 $blueprint
-                    ->foreignId("blocked_ip_id")
+                    ->foreignId('blocked_ip_id')
                     ->nullable()
                     ->constrained($blockedIpsTable)
                     ->nullOnDelete();
-                $blueprint->text("user_agent")->nullable();
+                $blueprint->text('user_agent')->nullable();
                 $blueprint->timestamps();
 
-                $blueprint->index(["status", "created_at"]);
+                $blueprint->index(['status', 'created_at']);
             });
         }
 
-        if (!$schema->hasTable($userLoginsTable)) {
+        if (! $schema->hasTable($userLoginsTable)) {
             $schema->create($userLoginsTable, function (
                 Blueprint $blueprint,
             ) use ($usersTable, $hasUsersTable) {
                 $blueprint->id();
                 if ($hasUsersTable) {
                     $blueprint
-                        ->foreignId("user_id")
+                        ->foreignId('user_id')
                         ->constrained($usersTable)
                         ->cascadeOnDelete();
                 } else {
-                    $blueprint->unsignedBigInteger("user_id")->index();
+                    $blueprint->unsignedBigInteger('user_id')->index();
                 }
-                $blueprint->string("session_id", 255)->nullable()->index();
-                $blueprint->string("ip_address", 45)->index();
-                $blueprint->string("local_ip", 45)->nullable();
-                $blueprint->string("device_id", 100)->nullable()->index();
-                $blueprint->text("user_agent")->nullable();
-                $blueprint->string("device_type", 50)->default("desktop");
+                $blueprint->string('session_id', 255)->nullable()->index();
+                $blueprint->string('ip_address', 45)->index();
+                $blueprint->string('local_ip', 45)->nullable();
+                $blueprint->string('device_id', 100)->nullable()->index();
+                $blueprint->text('user_agent')->nullable();
+                $blueprint->string('device_type', 50)->default('desktop');
                 $blueprint
-                    ->string("operating_system", 255)
-                    ->default("Unknown OS");
-                $blueprint->string("browser", 255)->default("Unknown Browser");
-                $blueprint->string("city", 100)->nullable();
-                $blueprint->string("region", 100)->nullable();
-                $blueprint->string("country", 100)->nullable();
-                $blueprint->string("country_code", 10)->nullable();
-                $blueprint->decimal("latitude", 10, 7)->nullable();
-                $blueprint->decimal("longitude", 10, 7)->nullable();
-                $blueprint->string("isp", 255)->nullable();
-                $blueprint->timestamp("login_at");
-                $blueprint->timestamp("last_activity_at")->nullable()->index();
-                $blueprint->timestamp("logout_at")->nullable();
+                    ->string('operating_system', 255)
+                    ->default('Unknown OS');
+                $blueprint->string('browser', 255)->default('Unknown Browser');
+                $blueprint->string('city', 100)->nullable();
+                $blueprint->string('region', 100)->nullable();
+                $blueprint->string('country', 100)->nullable();
+                $blueprint->string('country_code', 10)->nullable();
+                $blueprint->decimal('latitude', 10, 7)->nullable();
+                $blueprint->decimal('longitude', 10, 7)->nullable();
+                $blueprint->string('isp', 255)->nullable();
+                $blueprint->timestamp('login_at');
+                $blueprint->timestamp('last_activity_at')->nullable()->index();
+                $blueprint->timestamp('logout_at')->nullable();
                 $blueprint->timestamps();
             });
         }
 
-        if (!$schema->hasTable($trustedIpsTable)) {
+        if (! $schema->hasTable($trustedIpsTable)) {
             $schema->create($trustedIpsTable, function (
                 Blueprint $blueprint,
             ) use ($usersTable, $hasUsersTable) {
                 $blueprint->id();
                 if ($hasUsersTable) {
                     $blueprint
-                        ->foreignId("user_id")
+                        ->foreignId('user_id')
                         ->constrained($usersTable)
                         ->cascadeOnDelete();
                 } else {
-                    $blueprint->unsignedBigInteger("user_id")->index();
+                    $blueprint->unsignedBigInteger('user_id')->index();
                 }
-                $blueprint->string("ip_address", 45)->index();
-                $blueprint->string("local_ip", 45)->nullable();
-                $blueprint->string("device_id", 100)->nullable()->index();
-                $blueprint->string("device_name", 255)->nullable();
-                $blueprint->string("operating_system", 255)->nullable();
-                $blueprint->string("browser", 255)->nullable();
-                $blueprint->string("location", 255)->nullable();
-                $blueprint->boolean("is_active")->default(true);
-                $blueprint->timestamp("verified_at")->nullable();
+                $blueprint->string('ip_address', 45)->index();
+                $blueprint->string('local_ip', 45)->nullable();
+                $blueprint->string('device_id', 100)->nullable()->index();
+                $blueprint->string('device_name', 255)->nullable();
+                $blueprint->string('operating_system', 255)->nullable();
+                $blueprint->string('browser', 255)->nullable();
+                $blueprint->string('location', 255)->nullable();
+                $blueprint->boolean('is_active')->default(true);
+                $blueprint->timestamp('verified_at')->nullable();
                 $blueprint->timestamps();
 
-                $blueprint->unique(["user_id", "ip_address"]);
+                $blueprint->unique(['user_id', 'ip_address']);
             });
         }
 
-        if (!$schema->hasTable($settingsTable)) {
+        if (! $schema->hasTable($settingsTable)) {
             $schema->create($settingsTable, function (Blueprint $blueprint) {
                 $blueprint->id();
-                $blueprint->string("key")->unique();
-                $blueprint->text("value")->nullable();
+                $blueprint->string('key')->unique();
+                $blueprint->text('value')->nullable();
                 $blueprint->timestamps();
             });
         }
 
-        if (!$schema->hasTable($allowedIpsTable)) {
+        if (! $schema->hasTable($allowedIpsTable)) {
             $schema->create($allowedIpsTable, function (
                 Blueprint $blueprint,
             ) use ($usersTable, $hasUsersTable) {
                 $blueprint->id();
-                $blueprint->string("ip_address", 45)->index();
-                $blueprint->string("label", 150)->nullable();
-                $blueprint->text("notes")->nullable();
+                $blueprint->string('ip_address', 45)->index();
+                $blueprint->string('label', 150)->nullable();
+                $blueprint->text('notes')->nullable();
                 if ($hasUsersTable) {
                     $blueprint
-                        ->foreignId("allowed_by")
+                        ->foreignId('allowed_by')
                         ->nullable()
                         ->constrained($usersTable)
                         ->nullOnDelete();
                 } else {
                     $blueprint
-                        ->unsignedBigInteger("allowed_by")
+                        ->unsignedBigInteger('allowed_by')
                         ->nullable()
                         ->index();
                 }
-                $blueprint->boolean("is_active")->default(true);
-                $blueprint->timestamp("expires_at")->nullable()->index();
+                $blueprint->boolean('is_active')->default(true);
+                $blueprint->timestamp('expires_at')->nullable()->index();
                 $blueprint->timestamps();
 
-                $blueprint->index(["is_active", "ip_address"]);
+                $blueprint->index(['is_active', 'ip_address']);
             });
         }
     }
@@ -324,28 +324,28 @@ return new class extends Migration {
         $schema = Schema::connection($this->getConnection());
 
         $tables = [
-            config("pasax.table_names.settings", "pasax_settings"),
-            config("pasax.table_names.allowed_ips", "pasax_allowed_ips"),
-            config("pasax.table_names.trusted_ips", "pasax_trusted_ips"),
-            config("pasax.table_names.user_logins", "pasax_user_logins"),
+            config('pasax.table_names.settings', 'pasax_settings'),
+            config('pasax.table_names.allowed_ips', 'pasax_allowed_ips'),
+            config('pasax.table_names.trusted_ips', 'pasax_trusted_ips'),
+            config('pasax.table_names.user_logins', 'pasax_user_logins'),
             config(
-                "pasax.table_names.ip_unblock_requests",
-                "pasax_ip_unblock_requests",
+                'pasax.table_names.ip_unblock_requests',
+                'pasax_ip_unblock_requests',
             ),
-            config("pasax.table_names.login_attempts", "pasax_login_attempts"),
+            config('pasax.table_names.login_attempts', 'pasax_login_attempts'),
             config(
-                "pasax.table_names.pasax_logs",
-                config("pasax.table_names.security_logs", "pasax_logs"),
+                'pasax.table_names.pasax_logs',
+                config('pasax.table_names.security_logs', 'pasax_logs'),
             ),
-            config("pasax.table_names.blocked_ips", "pasax_blocked_ips"),
-            "allowed_ips",
-            "trusted_ips",
-            "user_logins",
-            "ip_unblock_requests",
-            "login_attempts",
-            "blocked_ips",
-            "security_logs",
-            "security_settings",
+            config('pasax.table_names.blocked_ips', 'pasax_blocked_ips'),
+            'allowed_ips',
+            'trusted_ips',
+            'user_logins',
+            'ip_unblock_requests',
+            'login_attempts',
+            'blocked_ips',
+            'security_logs',
+            'security_settings',
         ];
 
         $schema->disableForeignKeyConstraints();

@@ -18,7 +18,7 @@ afterEach(function () use (&$tempDir) {
 });
 
 test('pasax install command defines api-key and api-url options', function () {
-    $command = $this->app->make(PasaxInstallCommand::class);
+    $command = app(PasaxInstallCommand::class);
     $definition = $command->getDefinition();
 
     expect($definition->hasOption('api-key'))->toBeTrue();

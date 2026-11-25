@@ -15,17 +15,17 @@ class PasaxSentinelCommand extends Command
                             {--ping : Test health and roundtrip latency with daemon}
                             {--status : Inspect sentinel status and kernel ruleset metrics}';
 
-    protected $description = "Communicate directly with the local Pasax Sentinel host daemon over Unix socket";
+    protected $description = 'Communicate directly with the local Pasax Sentinel host daemon over Unix socket';
 
     public function handle(PasaxSentinelBridge $bridge): int
     {
-        $this->info("[Pasax Sentinel IPC Diagnostics]");
+        $this->info('[Pasax Sentinel IPC Diagnostics]');
         $this->line("Socket target: {$bridge->getSocketPath()}");
 
         // 1. Block IP Option
-        if ($ip = $this->option("block")) {
-            $reason = (string) $this->option("reason");
-            $duration = (int) $this->option("duration");
+        if ($ip = $this->option('block')) {
+            $reason = (string) $this->option('reason');
+            $duration = (int) $this->option('duration');
 
             $this->comment(
                 "Requesting kernel firewall drop for IP: {$ip} (Reason: {$reason})...",
@@ -48,7 +48,7 @@ class PasaxSentinelCommand extends Command
         }
 
         // 2. Unblock IP Option
-        if ($ip = $this->option("unblock")) {
+        if ($ip = $this->option('unblock')) {
             $this->comment("Requesting unban for IP: {$ip}...");
             $success = $bridge->unblockIP($ip);
 
@@ -66,55 +66,56 @@ class PasaxSentinelCommand extends Command
         }
 
         // 3. Ping Option
-        if ($this->option("ping")) {
-            $this->comment("Pinging Sentinel daemon...");
+        if ($this->option('ping')) {
+            $this->comment('Pinging Sentinel daemon...');
             $pong = $bridge->ping();
 
             if ($pong) {
                 $this->info(
-                    "✔ PONG received from Sentinel daemon. IPC socket is fully operational.",
+                    '✔ PONG received from Sentinel daemon. IPC socket is fully operational.',
                 );
 
                 return self::SUCCESS;
             }
 
-            $this->error("✖ PING failed: Sentinel daemon did not respond.");
+            $this->error('✖ PING failed: Sentinel daemon did not respond.');
 
             return self::FAILURE;
         }
 
         // Default or --status
-        $this->info("Inspecting Sentinel daemon status...");
+        $this->info('Inspecting Sentinel daemon status...');
         $status = $bridge->status();
 
         if ($status !== null) {
-            $this->info("✔ Sentinel Daemon is ONLINE");
+            $this->info('✔ Sentinel Daemon is ONLINE');
 
             $blockedSample = array_map(function ($item) {
                 if (is_array($item)) {
-                    return $item["ip"] ?? json_encode($item);
+                    return $item['ip'] ?? json_encode($item);
                 }
+
                 return (string) $item;
-            }, (array) ($status["blocked_ips"] ?? []));
+            }, (array) ($status['blocked_ips'] ?? []));
 
             $this->table(
-                ["Metric", "Value"],
+                ['Metric', 'Value'],
                 [
                     [
-                        "Firewall Driver",
-                        $status["firewall_driver"] ?? "unknown",
+                        'Firewall Driver',
+                        $status['firewall_driver'] ?? 'unknown',
                     ],
-                    ["Kernel Drops Count", $status["blocked_count"] ?? 0],
-                    ["Active Drops Sample", implode(", ", $blockedSample)],
+                    ['Kernel Drops Count', $status['blocked_count'] ?? 0],
+                    ['Active Drops Sample', implode(', ', $blockedSample)],
                 ],
             );
 
             return self::SUCCESS;
         }
 
-        $this->warn("⚠ Sentinel daemon is OFFLINE or socket is not created.");
+        $this->warn('⚠ Sentinel daemon is OFFLINE or socket is not created.');
         $this->line(
-            "Ensure `pasax-sentinel` daemon is running on the host system.",
+            'Ensure `pasax-sentinel` daemon is running on the host system.',
         );
 
         return self::FAILURE;

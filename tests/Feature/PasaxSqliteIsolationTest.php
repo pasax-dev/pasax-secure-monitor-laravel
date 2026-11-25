@@ -123,7 +123,7 @@ test('pasax migrations and models run in isolated pasax_sqlite database while ho
         'role' => 'admin',
     ]);
 
-    $log = PasaxLog::create([
+    $log = PasaxLog::query()->create([
         'user_id' => $hostUser->id,
         'ip_address' => '198.51.100.25',
         'event_type' => 'xss',
@@ -134,7 +134,7 @@ test('pasax migrations and models run in isolated pasax_sqlite database while ho
         'evidence' => 'Isolated SQLite test',
     ]);
 
-    PasaxBlockedIp::create([
+    PasaxBlockedIp::query()->create([
         'ip_address' => '198.51.100.25',
         'reason' => 'Automated XSS probe',
         'blocked_by' => $hostUser->id,
@@ -148,10 +148,13 @@ test('pasax migrations and models run in isolated pasax_sqlite database while ho
         ->and(DB::connection('pasax_sqlite')->table('pasax_settings')->where('key', 'test_isolation')->value('value'))->toBe('yes');
 
     // Cross-DB Eloquent relationship resolves host User cleanly
-    $loaded = PasaxLog::with('user')->find($log->id);
-    expect($loaded)->not->toBeNull()
-        ->and($loaded->user)->not->toBeNull()
-        ->and($loaded->user->email)->toBe('host-owner@example.com');
+    /** @var PasaxLog|null $loaded */
+    $loaded = PasaxLog::query()->with('user')->find($log->id);
+    expect($loaded)->not->toBeNull();
+    /** @var TestUser|null $loadedUser */
+    $loadedUser = $loaded?->getRelationValue('user');
+    expect($loadedUser)->not->toBeNull()
+        ->and($loadedUser?->email)->toBe('host-owner@example.com');
 
     // Server audit reports pasax_database & pasax_sqlite_wal checks cleanly
     $audit = app(PasaxServerSecurityService::class);

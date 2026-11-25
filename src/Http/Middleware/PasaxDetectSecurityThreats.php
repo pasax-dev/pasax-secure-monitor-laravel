@@ -29,7 +29,7 @@ class PasaxDetectSecurityThreats
 
     public function handle(Request $request, Closure $next): Response
     {
-        if (!$this->service->enabled()) {
+        if (! $this->service->enabled()) {
             return $next($request);
         }
 
@@ -50,7 +50,7 @@ class PasaxDetectSecurityThreats
         // An authenticated administrator is never blocked or rejected.
         // Threats are logged for audit purposes with 'admin_bypass'.
         if ($this->service->isAdminRequest($request)) {
-            $this->service->record($request, $threats, "admin_bypass");
+            $this->service->record($request, $threats, 'admin_bypass');
 
             return $next($request);
         }
@@ -60,21 +60,21 @@ class PasaxDetectSecurityThreats
         // Sistem hanya mencatat counter serangan yang diobservasi secara pasif.
         if (
             $this->cloudService !== null &&
-            !$this->cloudService->isProtectionActive()
+            ! $this->cloudService->isProtectionActive()
         ) {
-            $this->service->record($request, $threats, "unprotected_passive");
+            $this->service->record($request, $threats, 'unprotected_passive');
 
             $firstThreat = $threats[0] ?? [];
             $this->cloudService->reportThreat([
-                "event_type" => "UNPROTECTED_OBSERVED_ATTACK",
-                "ip_address" => $ip,
-                "threat_level" => $firstThreat["level"] ?? "medium",
-                "blocked" => false,
-                "path" => $request->path(),
-                "method" => $request->method(),
-                "rule_label" => $firstThreat["label"] ?? null,
-                "evidence" => $firstThreat["evidence"] ?? null,
-                "user_agent" => $request->userAgent(),
+                'event_type' => 'UNPROTECTED_OBSERVED_ATTACK',
+                'ip_address' => $ip,
+                'threat_level' => $firstThreat['level'] ?? 'medium',
+                'blocked' => false,
+                'path' => $request->path(),
+                'method' => $request->method(),
+                'rule_label' => $firstThreat['label'] ?? null,
+                'evidence' => $firstThreat['evidence'] ?? null,
+                'user_agent' => $request->userAgent(),
             ]);
 
             return $next($request);
@@ -98,7 +98,7 @@ class PasaxDetectSecurityThreats
                 $localIp,
             );
 
-            $this->markLogAsBlocked($log, "instant_block");
+            $this->markLogAsBlocked($log, 'instant_block');
 
             return PasaxBlockIpAddress::blockedResponse(
                 $request,
@@ -118,12 +118,12 @@ class PasaxDetectSecurityThreats
         }
 
         if ($this->shouldReject($threats)) {
-            $this->markLogAsBlocked($log, "rejected");
+            $this->markLogAsBlocked($log, 'rejected');
 
             return PasaxBlockIpAddress::forbiddenResponse(
                 $request,
-                "Permintaan ditolak karena mengandung payload yang tidak diizinkan.",
-                "Payload berbahaya terdeteksi.",
+                'Permintaan ditolak karena mengandung payload yang tidak diizinkan.',
+                'Payload berbahaya terdeteksi.',
             );
         }
 
@@ -138,12 +138,12 @@ class PasaxDetectSecurityThreats
      */
     protected function shouldReject(array $threats): bool
     {
-        if (!config("pasax.block_suspicious_requests", false)) {
+        if (! config('pasax.block_suspicious_requests', false)) {
             return false;
         }
 
         foreach ($threats as $threat) {
-            if (($threat["level"] ?? "low") === "critical") {
+            if (($threat['level'] ?? 'low') === 'critical') {
                 return true;
             }
         }
@@ -153,7 +153,7 @@ class PasaxDetectSecurityThreats
 
     protected function markLogAsBlocked(
         ?PasaxLog $log,
-        string $action = "auto_blocked",
+        string $action = 'auto_blocked',
     ): void {
         if ($log === null) {
             return;
@@ -161,8 +161,8 @@ class PasaxDetectSecurityThreats
 
         try {
             $log->forceFill([
-                "was_blocked" => true,
-                "action_taken" => $action,
+                'was_blocked' => true,
+                'action_taken' => $action,
             ])->save();
         } catch (Throwable) {
             // Ignore: the audit entry is already stored.

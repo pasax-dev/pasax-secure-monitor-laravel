@@ -1864,10 +1864,11 @@ MARKDOWN;
         }
 
         $context = stream_context_create($opts);
+        $http_response_header = [];
         $body = @file_get_contents($url, false, $context);
 
         $status = 0;
-        if (isset($http_response_header) && ! empty($http_response_header)) {
+        if (isset($http_response_header[0]) && is_string($http_response_header[0])) {
             if (preg_match('/HTTP\/\S+\s+(\d+)/', $http_response_header[0], $m)) {
                 $status = (int) $m[1];
             }

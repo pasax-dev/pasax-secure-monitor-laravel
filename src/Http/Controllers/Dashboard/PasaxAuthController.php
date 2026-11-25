@@ -19,39 +19,39 @@ class PasaxAuthController
     public function showLoginForm(Request $request)
     {
         $ssoError = null;
-        $ssoToken = trim((string) $request->query("sso_token", ""));
+        $ssoToken = trim((string) $request->query('sso_token', ''));
 
-        if ($ssoToken !== "") {
+        if ($ssoToken !== '') {
             $verification = PasaxDashboardSecret::verifyOwnerSsoToken(
                 $ssoToken,
             );
 
-            if ($verification["valid"] && !empty($verification["subject"])) {
+            if ($verification['valid'] && ! empty($verification['subject'])) {
                 if ($request->hasSession()) {
                     $request->session()->regenerate();
                     $request
                         ->session()
-                        ->put("pasax_dashboard_authenticated", true);
+                        ->put('pasax_dashboard_authenticated', true);
                     $request
                         ->session()
-                        ->put("pasax_dashboard_user", $verification["subject"]);
+                        ->put('pasax_dashboard_user', $verification['subject']);
                     $request
                         ->session()
-                        ->put("pasax_dashboard_auth_mode", "owner_sso");
+                        ->put('pasax_dashboard_auth_mode', 'owner_sso');
                     $request
                         ->session()
-                        ->put("pasax_dashboard_login_at", now()->timestamp);
+                        ->put('pasax_dashboard_login_at', now()->timestamp);
                     $request
                         ->session()
                         ->forget([
-                            "pasax_dashboard_logged_out",
-                            "pasax_dashboard_needs_password_change",
-                            "pasax_dashboard_is_emergency_login",
+                            'pasax_dashboard_logged_out',
+                            'pasax_dashboard_needs_password_change',
+                            'pasax_dashboard_is_emergency_login',
                         ]);
                 }
 
                 $user = $this->resolveUserForDashboardLogin(
-                    $verification["subject"],
+                    $verification['subject'],
                 );
                 if ($user instanceof Authenticatable) {
                     try {
@@ -67,18 +67,18 @@ class PasaxAuthController
             }
 
             $ssoError = __(
-                "Token akses SSO pemilik akun Pasax tidak valid atau telah kedaluwarsa.",
+                'Token akses SSO pemilik akun Pasax tidak valid atau telah kedaluwarsa.',
             );
         }
 
         // Jika sudah login, langsung alihkan ke overview atau URL tujuan
         if (
             $request->hasSession() &&
-            $request->session()->get("pasax_dashboard_authenticated") === true
+            $request->session()->get('pasax_dashboard_authenticated') === true
         ) {
             $prefix = trim(
-                (string) config("pasax.dashboard.prefix", "pasax"),
-                "/",
+                (string) config('pasax.dashboard.prefix', 'pasax'),
+                '/',
             );
 
             return redirect()->to(url($prefix));
@@ -90,7 +90,7 @@ class PasaxAuthController
             : null;
 
         $secret = $this->resolveExpectedSecret();
-        $secretConfigured = $secret !== "";
+        $secretConfigured = $secret !== '';
         $ownerIdentity = PasaxDashboardSecret::resolveOwnerIdentity();
         $passwordlessOwnerEnabled = PasaxDashboardSecret::isPasswordlessOwnerEnabled();
         $matchedHostOwner =
@@ -99,22 +99,22 @@ class PasaxAuthController
             PasaxDashboardSecret::matchesOwnerAccount($request->user());
 
         /** @var view-string $viewName */
-        $viewName = "pages.pasax.login";
+        $viewName = 'pages.pasax.login';
 
         return view($viewName, [
-            "secretConfigured" => $secretConfigured,
-            "defaultUsername" => $this->resolveExpectedUsername(),
-            "defaultPassword" => $this->resolveDefaultPassword(),
-            "isPasswordStored" => PasaxDashboardSecret::isPasswordStoredInDatabase(),
-            "ownerIdentity" => $ownerIdentity,
-            "passwordlessOwnerEnabled" => $passwordlessOwnerEnabled,
-            "matchedHostOwner" => $matchedHostOwner,
-            "ssoError" => $ssoError,
-            "lockout" => $lockedAttempt
+            'secretConfigured' => $secretConfigured,
+            'defaultUsername' => $this->resolveExpectedUsername(),
+            'defaultPassword' => $this->resolveDefaultPassword(),
+            'isPasswordStored' => PasaxDashboardSecret::isPasswordStoredInDatabase(),
+            'ownerIdentity' => $ownerIdentity,
+            'passwordlessOwnerEnabled' => $passwordlessOwnerEnabled,
+            'matchedHostOwner' => $matchedHostOwner,
+            'ssoError' => $ssoError,
+            'lockout' => $lockedAttempt
                 ? [
-                    "seconds" => $lockedAttempt->secondsRemaining(),
-                    "level" => $lockedAttempt->lockout_level,
-                    "message" => $throttle->lockoutMessage(
+                    'seconds' => $lockedAttempt->secondsRemaining(),
+                    'level' => $lockedAttempt->lockout_level,
+                    'message' => $throttle->lockoutMessage(
                         $lockedAttempt->secondsRemaining(),
                     ),
                 ]
@@ -132,43 +132,43 @@ class PasaxAuthController
 
         if (
             $user === null ||
-            !PasaxDashboardSecret::isPasswordlessOwnerEnabled() ||
-            !PasaxDashboardSecret::matchesOwnerAccount($user)
+            ! PasaxDashboardSecret::isPasswordlessOwnerEnabled() ||
+            ! PasaxDashboardSecret::matchesOwnerAccount($user)
         ) {
             $msg = __(
-                "Akses langsung tanpa password hanya tersedia untuk akun pemilik Pasax yang terverifikasi sedang login.",
+                'Akses langsung tanpa password hanya tersedia untuk akun pemilik Pasax yang terverifikasi sedang login.',
             );
 
             if ($request->expectsJson()) {
-                return response()->json(["message" => $msg], 403);
+                return response()->json(['message' => $msg], 403);
             }
 
             return redirect()
-                ->route("pasax.dashboard.login")
-                ->withErrors(["pasax_login" => $msg]);
+                ->route('pasax.dashboard.login')
+                ->withErrors(['pasax_login' => $msg]);
         }
 
         $identity = PasaxDashboardSecret::resolveOwnerIdentity();
         $ownerLabel =
-            $identity["username"] ??
-            ($identity["email"] ?? ($user->email ?? "owner"));
+            $identity['username'] ??
+            ($identity['email'] ?? ($user->email ?? 'owner'));
 
         if ($request->hasSession()) {
             $request->session()->regenerate();
-            $request->session()->put("pasax_dashboard_authenticated", true);
-            $request->session()->put("pasax_dashboard_user", $ownerLabel);
+            $request->session()->put('pasax_dashboard_authenticated', true);
+            $request->session()->put('pasax_dashboard_user', $ownerLabel);
             $request
                 ->session()
-                ->put("pasax_dashboard_auth_mode", "owner_session");
+                ->put('pasax_dashboard_auth_mode', 'owner_session');
             $request
                 ->session()
-                ->put("pasax_dashboard_login_at", now()->timestamp);
+                ->put('pasax_dashboard_login_at', now()->timestamp);
             $request
                 ->session()
                 ->forget([
-                    "pasax_dashboard_logged_out",
-                    "pasax_dashboard_needs_password_change",
-                    "pasax_dashboard_is_emergency_login",
+                    'pasax_dashboard_logged_out',
+                    'pasax_dashboard_needs_password_change',
+                    'pasax_dashboard_is_emergency_login',
                 ]);
         }
 
@@ -191,46 +191,46 @@ class PasaxAuthController
     public function login(Request $request)
     {
         $throttle = app(PasaxLoginThrottleService::class);
-        $username = (string) $request->input("username");
+        $username = (string) $request->input('username');
         $ip = (string) $request->ip();
 
         if ($throttle->enabled()) {
             $status = $throttle->status($username, $ip);
-            if ($status["locked"]) {
+            if ($status['locked']) {
                 $msg =
-                    $status["message"] ??
-                    $throttle->lockoutMessage($status["seconds"]);
+                    $status['message'] ??
+                    $throttle->lockoutMessage($status['seconds']);
 
                 return back()
-                    ->withInput($request->only("username"))
+                    ->withInput($request->only('username'))
                     ->withErrors([
-                        "pasax_login" => $msg,
-                        "username" => $msg,
+                        'pasax_login' => $msg,
+                        'username' => $msg,
                     ]);
             }
         }
 
-        $throttleKey = "pasax_login_throttle:" . Str::lower($request->ip());
+        $throttleKey = 'pasax_login_throttle:'.Str::lower($request->ip());
 
         // Perlindungan brute-force: maksimal 5 percobaan gagal per 60 detik
         if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
             $seconds = RateLimiter::availableIn($throttleKey);
             $msg = __(
-                "Terlalu banyak percobaan login gagal. Silakan coba lagi dalam :seconds detik.",
-                ["seconds" => $seconds],
+                'Terlalu banyak percobaan login gagal. Silakan coba lagi dalam :seconds detik.',
+                ['seconds' => $seconds],
             );
 
             return back()
-                ->withInput($request->only("username"))
+                ->withInput($request->only('username'))
                 ->withErrors([
-                    "pasax_login" => $msg,
-                    "username" => $msg,
+                    'pasax_login' => $msg,
+                    'username' => $msg,
                 ]);
         }
 
         $request->validate([
-            "username" => "required|string",
-            "password" => "required|string",
+            'username' => 'required|string',
+            'password' => 'required|string',
         ]);
 
         $expectedUser = $this->resolveExpectedUsername();
@@ -238,21 +238,21 @@ class PasaxAuthController
         $defaultPassword = $this->resolveDefaultPassword();
 
         // Jika secret belum terisi di .env
-        if ($expectedSecret === "") {
+        if ($expectedSecret === '') {
             $msg = __(
                 'PASAX_DASHBOARD_SECRET belum dikonfigurasi pada .env. Jalankan "php artisan pasax:secret" terlebih dahulu.',
             );
 
             return back()
-                ->withInput($request->only("username"))
+                ->withInput($request->only('username'))
                 ->withErrors([
-                    "pasax_login" => $msg,
-                    "password" => $msg,
+                    'pasax_login' => $msg,
+                    'password' => $msg,
                 ]);
         }
 
-        $inputUser = (string) $request->input("username");
-        $inputPassword = (string) $request->input("password");
+        $inputUser = (string) $request->input('username');
+        $inputPassword = (string) $request->input('password');
 
         $userValid = hash_equals($expectedUser, $inputUser);
         $passResult = PasaxDashboardSecret::verifyPassword(
@@ -261,34 +261,34 @@ class PasaxAuthController
             $defaultPassword,
         );
 
-        if (!$userValid || !$passResult["valid"]) {
+        if (! $userValid || ! $passResult['valid']) {
             RateLimiter::hit($throttleKey, 60);
 
             if ($throttle->enabled()) {
                 $failStatus = $throttle->registerFailure($username, $ip);
-                if ($failStatus["locked"]) {
+                if ($failStatus['locked']) {
                     $msg =
-                        $failStatus["message"] ??
-                        $throttle->lockoutMessage($failStatus["seconds"]);
+                        $failStatus['message'] ??
+                        $throttle->lockoutMessage($failStatus['seconds']);
 
                     return back()
-                        ->withInput($request->only("username"))
+                        ->withInput($request->only('username'))
                         ->withErrors([
-                            "pasax_login" => $msg,
-                            "username" => $msg,
-                            "password" => $msg,
+                            'pasax_login' => $msg,
+                            'username' => $msg,
+                            'password' => $msg,
                         ]);
                 }
             }
             $msg = __(
-                "Username atau password salah. Periksa kredensial pada berkas .env Anda.",
+                'Username atau password salah. Periksa kredensial pada berkas .env Anda.',
             );
 
             return back()
-                ->withInput($request->only("username"))
+                ->withInput($request->only('username'))
                 ->withErrors([
-                    "pasax_login" => $msg,
-                    "password" => $msg,
+                    'pasax_login' => $msg,
+                    'password' => $msg,
                 ]);
         }
 
@@ -300,15 +300,15 @@ class PasaxAuthController
 
         if ($request->hasSession()) {
             $request->session()->regenerate();
-            $request->session()->put("pasax_dashboard_authenticated", true);
-            $request->session()->put("pasax_dashboard_user", $inputUser);
+            $request->session()->put('pasax_dashboard_authenticated', true);
+            $request->session()->put('pasax_dashboard_user', $inputUser);
             $request
                 ->session()
-                ->put("pasax_dashboard_auth_mode", "credentials");
+                ->put('pasax_dashboard_auth_mode', 'credentials');
             $request
                 ->session()
-                ->put("pasax_dashboard_login_at", now()->timestamp);
-            $request->session()->forget("pasax_dashboard_logged_out");
+                ->put('pasax_dashboard_login_at', now()->timestamp);
+            $request->session()->forget('pasax_dashboard_logged_out');
 
             // Catat sesi login khusus dasbor Pasax
             $user = $this->resolveUserForDashboardLogin($inputUser);
@@ -324,27 +324,27 @@ class PasaxAuthController
 
             // Jika login menggunakan secret darurat atau password default, minta ganti password
             if (
-                !empty($passResult["is_emergency"]) ||
-                !empty($passResult["is_default"])
+                ! empty($passResult['is_emergency']) ||
+                ! empty($passResult['is_default'])
             ) {
                 $request
                     ->session()
-                    ->put("pasax_dashboard_needs_password_change", true);
-                if (!empty($passResult["is_emergency"])) {
+                    ->put('pasax_dashboard_needs_password_change', true);
+                if (! empty($passResult['is_emergency'])) {
                     $request
                         ->session()
-                        ->put("pasax_dashboard_is_emergency_login", true);
+                        ->put('pasax_dashboard_is_emergency_login', true);
                 } else {
                     $request
                         ->session()
-                        ->forget("pasax_dashboard_is_emergency_login");
+                        ->forget('pasax_dashboard_is_emergency_login');
                 }
             } else {
                 $request
                     ->session()
                     ->forget([
-                        "pasax_dashboard_needs_password_change",
-                        "pasax_dashboard_is_emergency_login",
+                        'pasax_dashboard_needs_password_change',
+                        'pasax_dashboard_is_emergency_login',
                     ]);
             }
         }
@@ -358,12 +358,11 @@ class PasaxAuthController
     protected function resolveUserForDashboardLogin(
         string $username,
     ): ?Authenticatable {
-        $userModel = (string) config("pasax.user_model", "App\\Models\\User");
+        $userModel = (string) config('pasax.user_model', 'App\\Models\\User');
         if (class_exists($userModel)) {
-            $user = $userModel
-                ::query()
-                ->where("email", $username)
-                ->orWhere("name", $username)
+            $user = $userModel::query()
+                ->where('email', $username)
+                ->orWhere('name', $username)
                 ->first();
 
             return $user ?? $userModel::query()->first();
@@ -378,20 +377,20 @@ class PasaxAuthController
     public function updatePassword(Request $request)
     {
         $request->validate([
-            "password" => ["required", "string", "min:6", "confirmed"],
+            'password' => ['required', 'string', 'min:6', 'confirmed'],
         ]);
 
         $secret = $this->resolveExpectedSecret();
-        if ($secret === "") {
-            return back()->with("toast", [
-                "type" => "error",
-                "message" => __(
-                    "PASAX_DASHBOARD_SECRET belum dikonfigurasi pada .env.",
+        if ($secret === '') {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => __(
+                    'PASAX_DASHBOARD_SECRET belum dikonfigurasi pada .env.',
                 ),
             ]);
         }
 
-        $newPassword = (string) $request->input("password");
+        $newPassword = (string) $request->input('password');
 
         // Simpan hash password ke database
         PasaxDashboardSecret::storePasswordInDatabase($newPassword, $secret);
@@ -401,21 +400,21 @@ class PasaxAuthController
             $request
                 ->session()
                 ->forget([
-                    "pasax_dashboard_needs_password_change",
-                    "pasax_dashboard_is_emergency_login",
+                    'pasax_dashboard_needs_password_change',
+                    'pasax_dashboard_is_emergency_login',
                 ]);
         }
 
         $successMsg = __(
-            "Password dasbor berhasil diperbarui dan disimpan aman di database.",
+            'Password dasbor berhasil diperbarui dan disimpan aman di database.',
         );
 
         return back()
-            ->with("toast", [
-                "type" => "success",
-                "message" => $successMsg,
+            ->with('toast', [
+                'type' => 'success',
+                'message' => $successMsg,
             ])
-            ->with("status", $successMsg);
+            ->with('status', $successMsg);
     }
 
     /**
@@ -427,36 +426,36 @@ class PasaxAuthController
             $request
                 ->session()
                 ->forget([
-                    "pasax_dashboard_authenticated",
-                    "pasax_dashboard_user",
-                    "pasax_dashboard_auth_mode",
-                    "pasax_dashboard_login_at",
-                    "pasax_dashboard_intended",
-                    "pasax_dashboard_needs_password_change",
-                    "pasax_dashboard_is_emergency_login",
+                    'pasax_dashboard_authenticated',
+                    'pasax_dashboard_user',
+                    'pasax_dashboard_auth_mode',
+                    'pasax_dashboard_login_at',
+                    'pasax_dashboard_intended',
+                    'pasax_dashboard_needs_password_change',
+                    'pasax_dashboard_is_emergency_login',
                 ]);
             $request->session()->invalidate();
             $request->session()->regenerateToken();
             // Mencegah re-autentikasi otomatis segera setelah pengguna memilih logout eksplisit
-            $request->session()->put("pasax_dashboard_logged_out", true);
+            $request->session()->put('pasax_dashboard_logged_out', true);
         }
 
         return redirect()
-            ->route("pasax.dashboard.login")
-            ->with("status", __("Sesi dashboard Pasax telah diakhiri."));
+            ->route('pasax.dashboard.login')
+            ->with('status', __('Sesi dashboard Pasax telah diakhiri.'));
     }
 
     protected function redirectToDashboardIntended(Request $request)
     {
         $intended = $request->hasSession()
-            ? $request->session()->pull("pasax_dashboard_intended")
+            ? $request->session()->pull('pasax_dashboard_intended')
             : null;
-        $prefix = trim((string) config("pasax.dashboard.prefix", "pasax"), "/");
+        $prefix = trim((string) config('pasax.dashboard.prefix', 'pasax'), '/');
 
         if (
-            !empty($intended) &&
-            (str_contains($intended, "/" . $prefix) ||
-                str_contains($intended, $prefix . "-"))
+            ! empty($intended) &&
+            (str_contains($intended, '/'.$prefix) ||
+                str_contains($intended, $prefix.'-'))
         ) {
             return redirect()->to($intended);
         }
@@ -469,14 +468,14 @@ class PasaxAuthController
      */
     protected function resolveExpectedSecret(): string
     {
-        $secret = (string) config("pasax.dashboard.secret");
-        if ($secret !== "") {
+        $secret = (string) config('pasax.dashboard.secret');
+        if ($secret !== '') {
             return $secret;
         }
 
         return (string) (PasaxDashboardSecret::readFromEnvFile(
-            base_path(".env"),
-        ) ?? "");
+            base_path('.env'),
+        ) ?? '');
     }
 
     /**
@@ -486,21 +485,21 @@ class PasaxAuthController
     {
         try {
             $dbUser = PasaxSetting::query()
-                ->where("key", PasaxDashboardSecret::DB_USERNAME_KEY)
-                ->value("value");
-            if (!empty($dbUser)) {
+                ->where('key', PasaxDashboardSecret::DB_USERNAME_KEY)
+                ->value('value');
+            if (! empty($dbUser)) {
                 return (string) $dbUser;
             }
         } catch (\Throwable) {
         }
 
-        $username = (string) config("pasax.dashboard.auth.username");
-        if ($username !== "") {
+        $username = (string) config('pasax.dashboard.auth.username');
+        if ($username !== '') {
             return $username;
         }
 
         return (string) (PasaxDashboardSecret::readUsernameFromEnvFile(
-            base_path(".env"),
+            base_path('.env'),
         ) ?? PasaxDashboardSecret::DEFAULT_USERNAME);
     }
 
@@ -509,13 +508,13 @@ class PasaxAuthController
      */
     protected function resolveDefaultPassword(): string
     {
-        $password = (string) config("pasax.dashboard.auth.default_password");
-        if ($password !== "") {
+        $password = (string) config('pasax.dashboard.auth.default_password');
+        if ($password !== '') {
             return $password;
         }
 
         return (string) (PasaxDashboardSecret::readPasswordFromEnvFile(
-            base_path(".env"),
+            base_path('.env'),
         ) ?? PasaxDashboardSecret::DEFAULT_PASSWORD);
     }
 }

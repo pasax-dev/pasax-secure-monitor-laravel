@@ -2,6 +2,15 @@
 
 All notable changes to `pasax/secure-monitor` will be documented in this file.
 
+## [1.1.1] - 2026-11-25
+
+### Fixed
+
+- **Kompatibilitas CI (`composer validate --strict`, PHP 8.2/8.3, Pint, PHPStan)**:
+  - Menghapus field `version` dari `composer.json` agar validasi ketat Packagist/Composer lolos.
+  - Mengembalikan sintaks `(new Class())->method()` demi kompatibilitas penuh PHP 8.2/8.3 dan menyelaraskan gaya kode dengan Laravel Pint.
+  - Mengetatkan tipe kembalian `PasaxDatabase::connection(): Connection` serta penulisan pengujian Pest agar lolos analisis statis PHPStan Level 5 tanpa error.
+
 ## [1.1.0] - 2026-11-25
 
 ### Added
