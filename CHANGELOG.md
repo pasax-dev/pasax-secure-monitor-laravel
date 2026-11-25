@@ -2,6 +2,12 @@
 
 All notable changes to `pasax/secure-monitor` will be documented in this file.
 
+## [1.1.2] - 2026-11-25
+
+### Fixed
+
+- **Static Analysis (PHPStan)**: Menambahkan penjaga `method_exists($artisan, 'registerCommand')` pada [tests/Feature/PasaxPasswordlessOwnerAuthTest.php](tests/Feature/PasaxPasswordlessOwnerAuthTest.php) agar seluruh 14 job GitHub Actions (Pint, PHPStan, dan matriks PHP 8.2–8.5 / Laravel 10–13) lulus 100%.
+
 ## [1.1.1] - 2026-11-25
 
 ### Fixed

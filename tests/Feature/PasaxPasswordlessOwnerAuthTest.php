@@ -209,7 +209,9 @@ test('pasax install command persists owner identity and isolated database env ke
 
     app()->instance(PasaxInstallCommand::class, $fakeInstallCommand);
     $artisan = app(Kernel::class);
-    $artisan->registerCommand($fakeInstallCommand);
+    if (method_exists($artisan, 'registerCommand')) {
+        $artisan->registerCommand($fakeInstallCommand);
+    }
 
     $this->artisan('pasax:install', [
         '--api-key' => 'psk_live_mocked_install_key_999',
