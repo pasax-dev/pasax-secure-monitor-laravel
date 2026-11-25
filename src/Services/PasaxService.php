@@ -13,12 +13,12 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Pasax\SecureMonitor\Models\PasaxAllowedIp;
 use Pasax\SecureMonitor\Models\PasaxBlockedIp;
 use Pasax\SecureMonitor\Models\PasaxLog;
 use Pasax\SecureMonitor\Models\PasaxSetting;
+use Pasax\SecureMonitor\Support\PasaxDatabase;
 use Throwable;
 
 /**
@@ -33,7 +33,7 @@ class PasaxService
     /**
      * Versi paket Pasax (Bulwark).
      */
-    public const VERSION = '1.0.9';
+    public const VERSION = '1.1.0';
 
     /**
      * Rentang waktu yang didukung grafik tren serangan.
@@ -97,7 +97,7 @@ class PasaxService
                 return $this->settingsMemoryCache[$key] = Cache::get("sec_cfg.{$key}");
             }
 
-            if (Schema::hasTable((new PasaxSetting)->getTable())) {
+            if (PasaxDatabase::schema()->hasTable((new PasaxSetting)->getTable())) {
                 $record = PasaxSetting::query()->where('key', $key)->first();
                 if ($record !== null) {
                     $val = unserialize($record->value);
@@ -162,7 +162,7 @@ class PasaxService
         try {
             Cache::forever("sec_cfg.{$key}", $value);
 
-            if (Schema::hasTable((new PasaxSetting)->getTable())) {
+            if (PasaxDatabase::schema()->hasTable((new PasaxSetting)->getTable())) {
                 PasaxSetting::query()->updateOrCreate(
                     ['key' => $key],
                     ['value' => serialize($value)]
@@ -271,7 +271,7 @@ class PasaxService
         $created = [];
 
         try {
-            if (! Schema::hasTable((new PasaxSetting)->getTable())) {
+            if (! PasaxDatabase::schema()->hasTable((new PasaxSetting)->getTable())) {
                 return $created;
             }
         } catch (Throwable) {
@@ -724,7 +724,7 @@ class PasaxService
         try {
             $allowedTable = (new PasaxAllowedIp)->getTable();
 
-            if (Schema::hasTable($allowedTable)) {
+            if (PasaxDatabase::schema()->hasTable($allowedTable)) {
                 $entry = PasaxAllowedIp::query()
                     ->where('is_active', true)
                     ->where(function ($query) {

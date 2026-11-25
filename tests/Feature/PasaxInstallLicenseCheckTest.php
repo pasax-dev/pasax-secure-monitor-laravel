@@ -81,7 +81,7 @@ test(
         $initialEnv = <<<'ENV'
         APP_NAME=Laravel
         PASAX_LICENSE_KEY=
-        PASAX_API_URL=https://pasax-service.vercel.app
+        PASAX_API_URL=https://service.pasax.web.id
         PASAX_CLOUD_KEY=
         ENV;
 

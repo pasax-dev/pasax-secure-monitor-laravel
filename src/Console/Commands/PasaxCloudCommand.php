@@ -95,7 +95,7 @@ class PasaxCloudCommand extends Command
         );
         $this->line(
             '• Endpoint Cloud API       : <comment>'.
-                config('pasax.cloud.url', 'https://pasax-service.vercel.app').
+                config('pasax.cloud.url', 'https://service.pasax.web.id').
                 '</comment>',
         );
         $this->newLine();

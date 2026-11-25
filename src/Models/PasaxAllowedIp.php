@@ -56,7 +56,7 @@ class PasaxAllowedIp extends Model
     {
         $userModel = config('pasax.user_model', 'App\Models\User');
 
-        return $this->belongsTo($userModel, 'allowed_by');
+        return $this->belongsToHostModel($userModel, 'allowed_by', relation: 'allowedBy');
     }
 
     public function scopeActive(Builder $query): Builder

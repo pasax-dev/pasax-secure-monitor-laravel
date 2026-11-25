@@ -112,6 +112,113 @@
     </div>
 </div>
 
+{{-- Database Terisolasi & Snapshot Backup SQLite --}}
+@php
+    $sql = $sqliteStatus ?? [];
+    $isSqlite = (bool) ($sql['is_sqlite'] ?? false);
+    $isIsolated = (bool) ($sql['is_isolated'] ?? false);
+    $ownerInfo = $ownerIdentity ?? [];
+    $ownerDisplay = $ownerInfo['username'] ?? ($ownerInfo['email'] ?? ($sql['owner_identifier'] ?? 'admin'));
+@endphp
+<div class="sec-card" style="margin-bottom: 20px;">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 16px; flex-wrap: wrap;">
+        <div>
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <h3 class="sec-card-title" style="margin: 0; font-size: 16px;">🗄️ {{ __('Database Terisolasi & Backup SQLite') }}</h3>
+                @if ($isIsolated)
+                    <span class="sec-badge sec-badge-success" style="font-size: 11px;">{{ __('Terisolasi dari DB Host') }}</span>
+                @else
+                    <span class="sec-badge sec-badge-low" style="font-size: 11px;">{{ __('Menggunakan Koneksi Host') }}</span>
+                @endif
+                @if ($isSqlite)
+                    <span class="sec-badge {{ ($sql['wal_enabled'] ?? false) ? 'sec-badge-success' : 'sec-badge-warning' }} sec-font-mono" style="font-size: 11px;">
+                        WAL: {{ strtoupper((string) ($sql['journal_mode'] ?? 'n/a')) }}
+                    </span>
+                @endif
+            </div>
+            <p class="sec-card-subtitle" style="margin-top: 4px;">
+                {{ __('Seluruh log keamanan, IP terblokir, tiket, dan pengaturan Pasax disimpan di luar webroot agar aman dari query bisnis host serta mudah di-backup dalam satu berkas portabel.') }}
+            </p>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+            @if ($isSqlite && ! empty($urls['backup']) && $urls['backup'] !== '#')
+                <form method="POST" action="{{ $urls['backup'] }}" style="display: inline;">
+                    @csrf
+                    <button type="submit" class="sec-btn sec-btn-primary sec-btn-sm" style="display: inline-flex; align-items: center; gap: 5px;">
+                        <span>💾</span>
+                        <span>{{ __('Buat Snapshot SQLite') }}</span>
+                    </button>
+                </form>
+                @if (! empty($urls['backupDownload']) && $urls['backupDownload'] !== '#')
+                    <a href="{{ $urls['backupDownload'] }}" class="sec-btn sec-btn-secondary sec-btn-sm" style="display: inline-flex; align-items: center; gap: 5px; text-decoration: none;">
+                        <span>📥</span>
+                        <span>{{ __('Unduh .sqlite Terbaru') }}</span>
+                    </a>
+                @endif
+            @endif
+        </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin-bottom: 14px;">
+        <div style="padding: 10px 12px; background: var(--sec-card-hover); border: 1px solid var(--sec-border-light); border-radius: 8px;">
+            <div style="font-size: 11px; color: var(--sec-text-muted);">{{ __('Koneksi & Driver') }}</div>
+            <div class="sec-font-mono" style="font-size: 13px; font-weight: 700; margin-top: 2px;">{{ $sql['connection'] ?? 'pasax_sqlite' }} ({{ $sql['driver'] ?? 'sqlite' }})</div>
+        </div>
+        <div style="padding: 10px 12px; background: var(--sec-card-hover); border: 1px solid var(--sec-border-light); border-radius: 8px;">
+            <div style="font-size: 11px; color: var(--sec-text-muted);">{{ __('Lokasi Berkas Database') }}</div>
+            <div class="sec-font-mono" style="font-size: 12px; font-weight: 600; margin-top: 2px; word-break: break-all;" title="{{ $sql['path'] ?? '' }}">{{ $sql['relative_path'] ?? 'storage/app/pasax/pasax.sqlite' }}</div>
+        </div>
+        <div style="padding: 10px 12px; background: var(--sec-card-hover); border: 1px solid var(--sec-border-light); border-radius: 8px;">
+            <div style="font-size: 11px; color: var(--sec-text-muted);">{{ __('Ukuran Database Aktif') }}</div>
+            <div class="sec-font-mono" style="font-size: 13px; font-weight: 700; margin-top: 2px;">{{ $sql['size_human'] ?? '0 B' }}</div>
+        </div>
+        <div style="padding: 10px 12px; background: var(--sec-card-hover); border: 1px solid var(--sec-border-light); border-radius: 8px;">
+            <div style="font-size: 11px; color: var(--sec-text-muted);">{{ __('Akun Pemilik Terikat') }}</div>
+            <div class="sec-font-mono" style="font-size: 13px; font-weight: 700; margin-top: 2px;">
+                {{ $ownerDisplay }}
+                @if (! empty($ownerInfo['email']))
+                    <span style="font-size: 11px; font-weight: 400; color: var(--sec-text-muted);">({{ $ownerInfo['email'] }})</span>
+                @endif
+            </div>
+        </div>
+    </div>
+
+    <div style="font-size: 12px; color: var(--sec-text-muted); margin-bottom: 10px;">
+        📂 {{ __('Direktori backup CLI (php artisan pasax:backup):') }} <code class="sec-font-mono">{{ $sql['relative_backup_dir'] ?? 'storage/app/pasax/backups' }}</code>
+    </div>
+
+    @if (! empty($backups))
+        <div class="sec-table-wrap" style="border: 1px solid var(--sec-border-light); border-radius: 8px;">
+            <table class="sec-table">
+                <thead>
+                    <tr>
+                        <th>{{ __('Berkas Snapshot Backup') }}</th>
+                        <th>{{ __('Waktu Dibuat') }}</th>
+                        <th style="text-align: right;">{{ __('Ukuran') }}</th>
+                        <th style="text-align: right;">{{ __('Unduh') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (array_slice($backups, 0, 8) as $bk)
+                        <tr>
+                            <td class="sec-font-mono" style="font-size: 12px; font-weight: 600;">{{ $bk['filename'] }}</td>
+                            <td class="sec-font-mono" style="font-size: 12px; color: var(--sec-text-muted);">{{ $bk['modified_at'] }}</td>
+                            <td class="sec-font-mono" style="font-size: 12px; text-align: right;">{{ $bk['size_human'] }}</td>
+                            <td style="text-align: right;">
+                                <a href="{{ route('pasax.dashboard.server.backup.download', ['file' => $bk['filename']]) }}" class="sec-btn sec-btn-secondary sec-btn-sm" style="text-decoration: none;">⬇️ .sqlite</a>
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    @else
+        <div style="padding: 12px; border: 1px dashed var(--sec-border); border-radius: 8px; font-size: 12px; color: var(--sec-text-muted);">
+            {{ __('Belum ada berkas snapshot di direktori backup. Klik "Buat Snapshot SQLite" atau jalankan php artisan pasax:backup.') }}
+        </div>
+    @endif
+</div>
+
 {{-- Pengaturan Lokasi Fisik & Zona Waktu Server (Live Threat Map & System Clock) --}}
 @php
     $effectiveTz = $serverLocation['effective_timezone'] ?? ($serverLocation['timezone'] ?? \Pasax\SecureMonitor\Support\DashboardView::timezone());

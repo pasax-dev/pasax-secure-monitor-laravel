@@ -53,7 +53,7 @@
 </FilesMatch>
 
 # Blokir berkas backup / dump / log bila ikut tersalin ke folder publik
-<FilesMatch "\.(sql|bak|old|orig|save|swp|log|ini|conf|yml|yaml)$">
+<FilesMatch "\.(sql|bak|old|orig|save|swp|log|ini|conf|yml|yaml|sqlite|sqlite3|sqlite-wal|sqlite-shm|db)$">
     <IfModule mod_authz_core.c>
         Require all denied
     </IfModule>

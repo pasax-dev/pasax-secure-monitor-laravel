@@ -67,9 +67,10 @@ class PasaxIpUnblockRequest extends Model
      */
     public function resolver(): BelongsTo
     {
-        return $this->belongsTo(
+        return $this->belongsToHostModel(
             config('pasax.user_model', 'App\\Models\\User'),
             'resolved_by',
+            relation: 'resolver',
         );
     }
 

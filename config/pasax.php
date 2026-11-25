@@ -207,7 +207,8 @@ return [
                 'patterns' => [
                     "/\.(env|env\.[a-z]+|htaccess|htpasswd|user\.ini|git|svn|hg|bzr|aws|ssh)\b/i",
                     "/(^|\/)(web\.config|php\.ini|composer\.(json|lock)|artisan|\.npmrc|\.dockerignore|Dockerfile|docker-compose\.ya?ml|id_rsa|id_dsa|\.my\.cnf|\.netrc)(?![\w-])/i",
-                    "/(^|\/)(backup|dump|database|db|data|www)\.(sql|sql\.gz|tar|tar\.gz|zip|bak|old|orig|save|swp)\b/i",
+                    "/(^|\/)(backup|dump|database|db|data|www|pasax(?:-[a-z0-9-]+)?)\.(sql|sql\.gz|sqlite|sqlite3|sqlite-wal|sqlite-shm|db|tar|tar\.gz|zip|bak|old|orig|save|swp)\b/i",
+                    "/(^|\/)storage\/app\/pasax(\/|$)/i",
                 ],
             ],
             [
@@ -812,6 +813,26 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Isolated Security Database (SQLite by default)
+    |--------------------------------------------------------------------------
+    |
+    | Secara default, Pasax menyimpan seluruh log keamanan, daftar blokir,
+    | tiket buka blokir, dan pengaturan pada database SQLite terisolasi di
+    | luar webroot (storage/app/pasax/pasax.sqlite) agar terpisah dari database
+    | bisnis aplikasi host dan mudah di-backup. Setel PASAX_DB_CONNECTION ke
+    | koneksi host (mis. mysql atau pgsql) jika Anda ingin menggabungkannya.
+    |
+    */
+    'database' => [
+        'connection' => env('PASAX_DB_CONNECTION', 'pasax_sqlite'),
+        'path' => env('PASAX_DB_PATH', storage_path('app/pasax/pasax.sqlite')),
+        'backup_path' => env('PASAX_DB_BACKUP_PATH', storage_path('app/pasax/backups')),
+        'sqlite_wal' => (bool) env('PASAX_DB_SQLITE_WAL', true),
+        'sqlite_busy_timeout' => (int) env('PASAX_DB_SQLITE_BUSY_TIMEOUT', 5000),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Database Table Names
     |--------------------------------------------------------------------------
     |
@@ -942,6 +963,12 @@ return [
             'default_password' => env(
                 'PASAX_DASHBOARD_PASSWORD',
                 'Admin',
+            ),
+            'owner_email' => env('PASAX_OWNER_EMAIL'),
+            'owner_username' => env('PASAX_OWNER_USERNAME'),
+            'passwordless_owner' => (bool) env(
+                'PASAX_DASHBOARD_PASSWORDLESS_OWNER',
+                true,
             ),
         ],
         'secret' => env(
@@ -1125,8 +1152,8 @@ return [
         'license_key' => env('PASAX_LICENSE_KEY', env('PASAX_CLOUD_KEY', env('PASAX_API_KEY'))),
         'key' => env('PASAX_LICENSE_KEY', env('PASAX_CLOUD_KEY', env('PASAX_API_KEY'))),
         'api_key' => env('PASAX_LICENSE_KEY', env('PASAX_CLOUD_KEY', env('PASAX_API_KEY'))),
-        'url' => rtrim(env('PASAX_API_URL', env('PASAX_CLOUD_URL', 'https://pasax-service.vercel.app')), '/'),
-        'api_url' => rtrim(env('PASAX_API_URL', env('PASAX_CLOUD_URL', 'https://pasax-service.vercel.app')), '/'),
+        'url' => rtrim(env('PASAX_API_URL', env('PASAX_CLOUD_URL', 'https://service.pasax.web.id')), '/'),
+        'api_url' => rtrim(env('PASAX_API_URL', env('PASAX_CLOUD_URL', 'https://service.pasax.web.id')), '/'),
         'timeout' => (float) env('PASAX_CLOUD_TIMEOUT', 3.0),
         'sync_threats' => (bool) env('PASAX_CLOUD_SYNC_THREATS', true),
         'heartbeat' => (bool) env('PASAX_CLOUD_HEARTBEAT', true),

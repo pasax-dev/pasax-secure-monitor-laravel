@@ -437,6 +437,13 @@
                 </div>
             @endif
 
+            @if (! empty($ssoError))
+                <div class="sec-alert sec-alert-danger">
+                    <span>⚠</span>
+                    <span>{{ $ssoError }}</span>
+                </div>
+            @endif
+
             @if ($errors->has('pasax_login'))
                 <div class="sec-alert sec-alert-danger">
                     <span>⚠</span>
@@ -448,6 +455,31 @@
                 <div class="sec-alert sec-alert-warning">
                     <span>⚠</span>
                     <span>{{ __('PASAX_DASHBOARD_SECRET belum dikonfigurasi di .env. Jalankan "php artisan pasax:secret" terlebih dahulu.') }}</span>
+                </div>
+            @endif
+
+            @if (! empty($matchedHostOwner) && Route::has('pasax.dashboard.login.owner'))
+                <div style="margin-bottom: 18px; padding: 14px; border-radius: var(--sec-radius-sm); background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.35);">
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px;">
+                        <span style="font-size: 12.5px; font-weight: 700; color: #10b981;">✓ {{ __('Akun Pemilik Pasax Terverifikasi') }}</span>
+                        @if (! empty($ownerIdentity['plan']))
+                            <span style="font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: rgba(16, 185, 129, 0.16); color: #10b981;">{{ $ownerIdentity['plan'] }}</span>
+                        @endif
+                    </div>
+                    <div style="font-size: 12px; color: var(--sec-text-muted); margin-bottom: 12px; line-height: 1.45;">
+                        {{ __('Sesi host aktif cocok dengan akun pemilik:') }}
+                        <strong style="color: var(--sec-text);">{{ $ownerIdentity['username'] ?? ($ownerIdentity['email'] ?? 'owner') }}</strong>
+                        @if (! empty($ownerIdentity['email']))
+                            <span style="opacity: 0.85;">({{ $ownerIdentity['email'] }})</span>
+                        @endif
+                    </div>
+                    <form method="POST" action="{{ route('pasax.dashboard.login.owner') }}">
+                        @csrf
+                        <button type="submit" class="sec-btn-submit" style="background: #10b981; margin-top: 0;">
+                            <span>🔓</span>
+                            <span>{{ __('Masuk Tanpa Password (:user)', ['user' => $ownerIdentity['username'] ?? ($ownerIdentity['email'] ?? 'Owner')]) }}</span>
+                        </button>
+                    </form>
                 </div>
             @endif
 
@@ -516,6 +548,10 @@
                     {{ __('Password awal:') }} <code>PASAX_DASHBOARD_PASSWORD</code> ({{ __('bawaan') }}: <code>{{ $defaultPassword ?? 'Admin' }}</code>) {{ __('atau kunci rahasia') }} <code>PASAX_DASHBOARD_SECRET</code>.<br>
                     <span style="opacity: 0.85;">{{ __('Setelah masuk, Anda dapat memperbarui password yang disimpan aman ke database.') }}</span><br>
                     <span style="color: var(--sec-primary); font-size: 11px;">🔒 {{ __('Lupa password? Masukkan nilai PASAX_DASHBOARD_SECRET dari berkas .env sebagai password darurat.') }}</span>
+                    @if (! empty($ownerIdentity['configured']))
+                        <br>
+                        <span style="color: #10b981; font-size: 11px;">👤 {{ __('Akun pemilik terikat:') }} <code>{{ $ownerIdentity['username'] ?? '-' }}</code>{{ ! empty($ownerIdentity['email']) ? ' ('.$ownerIdentity['email'].')' : '' }} — {{ __('mendukung akses tanpa password saat sesi host cocok atau via tautan SSO bertanda tangan.') }}</span>
+                    @endif
                 </div>
             </div>
         </div>

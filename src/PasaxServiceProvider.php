@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
+use Pasax\SecureMonitor\Console\Commands\PasaxBackupCommand;
 use Pasax\SecureMonitor\Console\Commands\PasaxBaselineCommand;
 use Pasax\SecureMonitor\Console\Commands\PasaxCloudCommand;
 use Pasax\SecureMonitor\Console\Commands\PasaxCommand;
@@ -29,6 +30,7 @@ use Pasax\SecureMonitor\Console\Commands\PasaxUnblockIpCommand;
 use Pasax\SecureMonitor\Console\Commands\PasaxUninstallCommand;
 use Pasax\SecureMonitor\Console\Commands\PasaxUpgradeCommand;
 use Pasax\SecureMonitor\Http\Controllers\Api\PasaxServerSecurityApiController;
+use Pasax\SecureMonitor\Http\Controllers\Dashboard\PasaxAuthController;
 use Pasax\SecureMonitor\Http\Controllers\Dashboard\PasaxServerController;
 use Pasax\SecureMonitor\Http\Middleware\PasaxBlockIpAddress;
 use Pasax\SecureMonitor\Http\Middleware\PasaxDashboardAuthenticate;
@@ -54,6 +56,8 @@ use Pasax\SecureMonitor\Services\PasaxVersionCheckService;
 use Pasax\SecureMonitor\Services\ServerSecurityService;
 use Pasax\SecureMonitor\Services\UserLoginService;
 use Pasax\SecureMonitor\Services\VersionCheckService;
+use Pasax\SecureMonitor\Support\PasaxDashboardSecret;
+use Pasax\SecureMonitor\Support\PasaxDatabase;
 
 class PasaxServiceProvider extends ServiceProvider
 {
@@ -62,36 +66,39 @@ class PasaxServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        $this->mergeConfigFrom(__DIR__.'/../config/pasax.php', 'pasax');
+        $this->mergeConfigFrom(__DIR__ . "/../config/pasax.php", "pasax");
 
         // Backward compatibility: old installs publish config/pasax.php
         // with SECURITY_* env vars. Merge it as fallback for missing keys.
-        $legacyConfig = config('security');
+        $legacyConfig = config("security");
         if (is_array($legacyConfig)) {
             foreach ($legacyConfig as $key => $value) {
-                if (! config()->has('pasax.'.$key)) {
-                    config()->set('pasax.'.$key, $value);
+                if (!config()->has("pasax." . $key)) {
+                    config()->set("pasax." . $key, $value);
                 }
             }
             // Keep the legacy key in sync so old config('security.*') calls keep working.
             config()->set(
-                'security',
-                array_replace($legacyConfig, config('pasax')),
+                "security",
+                array_replace($legacyConfig, config("pasax")),
             );
         } else {
-            config()->set('security', config('pasax'));
+            config()->set("security", config("pasax"));
         }
 
+        // Daftarkan definisi koneksi SQLite terisolasi (`pasax_sqlite`) ke runtime config
+        PasaxDatabase::configureConnection();
+
         $this->app->singleton(PasaxService::class, function ($app) {
-            return new PasaxService;
+            return new PasaxService();
         });
 
         $this->app->singleton(PasaxSentinelBridge::class, function ($app) {
-            return new PasaxSentinelBridge;
+            return new PasaxSentinelBridge();
         });
 
         $this->app->singleton(PasaxCloudService::class, function ($app) {
-            return new PasaxCloudService;
+            return new PasaxCloudService();
         });
 
         $this->app->singleton(PasaxLoginThrottleService::class, function (
@@ -107,7 +114,7 @@ class PasaxServiceProvider extends ServiceProvider
         );
 
         $this->app->singleton(PasaxUserLoginService::class, function ($app) {
-            return new PasaxUserLoginService;
+            return new PasaxUserLoginService();
         });
         $this->app->alias(
             PasaxUserLoginService::class,
@@ -140,15 +147,15 @@ class PasaxServiceProvider extends ServiceProvider
         );
 
         $this->app->singleton(PasaxVersionCheckService::class, function () {
-            return new PasaxVersionCheckService;
+            return new PasaxVersionCheckService();
         });
         $this->app->alias(
             PasaxVersionCheckService::class,
             VersionCheckService::class,
         );
 
-        $this->app->alias(PasaxService::class, 'pasax');
-        $this->app->alias(PasaxVersionCheckService::class, 'pasax.version');
+        $this->app->alias(PasaxService::class, "pasax");
+        $this->app->alias(PasaxVersionCheckService::class, "pasax.version");
     }
 
     /**
@@ -156,7 +163,7 @@ class PasaxServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        $this->loadJsonTranslationsFrom(__DIR__.'/../lang');
+        $this->loadJsonTranslationsFrom(__DIR__ . "/../lang");
         $this->registerPublishing();
         $this->registerCommands();
         $this->registerListeners();
@@ -171,162 +178,164 @@ class PasaxServiceProvider extends ServiceProvider
 
     protected function registerPublishing(): void
     {
-        if (! $this->app->runningInConsole()) {
+        if (!$this->app->runningInConsole()) {
             return;
         }
 
         // Config
         $this->publishes(
             [
-                __DIR__.'/../config/pasax.php' => config_path('pasax.php'),
+                __DIR__ . "/../config/pasax.php" => config_path("pasax.php"),
             ],
-            'pasax-config',
+            "pasax-config",
         );
 
         // Migrations
         $this->publishes(
             [
-                __DIR__.'/../database/migrations' => database_path(
-                    'migrations',
+                __DIR__ . "/../database/migrations" => database_path(
+                    "migrations",
                 ),
             ],
-            'pasax-migrations',
+            "pasax-migrations",
         );
 
         // Nginx Hardened Configuration
         $this->publishes(
             [
-                __DIR__.'/../stubs/nginx.conf.stub' => base_path(
-                    'nginx.conf',
+                __DIR__ . "/../stubs/nginx.conf.stub" => base_path(
+                    "nginx.conf",
                 ),
             ],
-            'pasax-nginx',
+            "pasax-nginx",
         );
 
         // Apache 2 VirtualHost Hardened Configuration
         $this->publishes(
             [
-                __DIR__.'/../stubs/apache2.conf.stub' => base_path(
-                    'apache2.conf',
+                __DIR__ . "/../stubs/apache2.conf.stub" => base_path(
+                    "apache2.conf",
                 ),
             ],
-            'pasax-apache',
+            "pasax-apache",
         );
 
         // Apache .htaccess Hardened Configuration
         $this->publishes(
             [
-                __DIR__.'/../stubs/htaccess.stub' => public_path('.htaccess'),
+                __DIR__ . "/../stubs/htaccess.stub" => public_path(".htaccess"),
             ],
-            'pasax-htaccess',
+            "pasax-htaccess",
         );
 
         // Default 403 "blocked" and 429 "pasax-login-throttle" error pages
         $this->publishes(
             [
-                __DIR__.'/../stubs/blocked.blade.php' => resource_path(
-                    'views/errors/blocked.blade.php',
+                __DIR__ . "/../stubs/blocked.blade.php" => resource_path(
+                    "views/errors/blocked.blade.php",
                 ),
-                __DIR__.'/../stubs/pasax-login-throttle.blade.php' => resource_path(
-                    'views/errors/pasax-login-throttle.blade.php',
+                __DIR__ .
+                "/../stubs/pasax-login-throttle.blade.php" => resource_path(
+                    "views/errors/pasax-login-throttle.blade.php",
                 ),
             ],
-            'pasax-views',
+            "pasax-views",
         );
 
         // Publish All Assets (Config, Migrations, Nginx, Apache2, Htaccess, Blocked View)
         $this->publishes(
             [
-                __DIR__.'/../config/pasax.php' => config_path('pasax.php'),
-                __DIR__.'/../database/migrations' => database_path(
-                    'migrations',
+                __DIR__ . "/../config/pasax.php" => config_path("pasax.php"),
+                __DIR__ . "/../database/migrations" => database_path(
+                    "migrations",
                 ),
-                __DIR__.'/../stubs/nginx.conf.stub' => base_path(
-                    'nginx.conf',
+                __DIR__ . "/../stubs/nginx.conf.stub" => base_path(
+                    "nginx.conf",
                 ),
-                __DIR__.'/../stubs/apache2.conf.stub' => base_path(
-                    'apache2.conf',
+                __DIR__ . "/../stubs/apache2.conf.stub" => base_path(
+                    "apache2.conf",
                 ),
-                __DIR__.'/../stubs/htaccess.stub' => public_path('.htaccess'),
-                __DIR__.'/../stubs/blocked.blade.php' => resource_path(
-                    'views/errors/blocked.blade.php',
+                __DIR__ . "/../stubs/htaccess.stub" => public_path(".htaccess"),
+                __DIR__ . "/../stubs/blocked.blade.php" => resource_path(
+                    "views/errors/blocked.blade.php",
                 ),
-                __DIR__.'/../stubs/pasax-login-throttle.blade.php' => resource_path(
-                    'views/errors/pasax-login-throttle.blade.php',
+                __DIR__ .
+                "/../stubs/pasax-login-throttle.blade.php" => resource_path(
+                    "views/errors/pasax-login-throttle.blade.php",
                 ),
             ],
-            'pasax-all',
+            "pasax-all",
         );
 
         // Pasax Route Stubs (routes/pasax.php & routes/pasax-api.php)
         $pasaxRouteStubs = [
-            __DIR__.'/../stubs/routes/pasax.php.stub' => base_path(
-                'routes/pasax.php',
+            __DIR__ . "/../stubs/routes/pasax.php.stub" => base_path(
+                "routes/pasax.php",
             ),
-            __DIR__.'/../stubs/routes/pasax-api.php.stub' => base_path(
-                'routes/pasax-api.php',
+            __DIR__ . "/../stubs/routes/pasax-api.php.stub" => base_path(
+                "routes/pasax-api.php",
             ),
         ];
-        $this->publishes($pasaxRouteStubs, 'pasax-routes');
+        $this->publishes($pasaxRouteStubs, "pasax-routes");
 
         $this->publishes(
             [
-                __DIR__.'/../stubs/routes/pasax.php.stub' => base_path(
-                    'routes/pasax.php',
+                __DIR__ . "/../stubs/routes/pasax.php.stub" => base_path(
+                    "routes/pasax.php",
                 ),
             ],
-            'pasax-routes-web',
+            "pasax-routes-web",
         );
 
         $this->publishes(
             [
-                __DIR__.'/../stubs/routes/pasax-api.php.stub' => base_path(
-                    'routes/pasax-api.php',
+                __DIR__ . "/../stubs/routes/pasax-api.php.stub" => base_path(
+                    "routes/pasax-api.php",
                 ),
             ],
-            'pasax-routes-api',
+            "pasax-routes-api",
         );
 
         // Dashboard monitoring Blade murni (views + konfigurasi).
         // Satu-satunya dashboard yang didukung: Blade murni tanpa
         // Livewire/Inertia/Vue — 100% Pure PHP (standar Spatie).
         $bladeViews = [
-            __DIR__.'/../stubs/blade/pages/pasax' => resource_path(
-                'views/pages/pasax',
+            __DIR__ . "/../stubs/blade/pages/pasax" => resource_path(
+                "views/pages/pasax",
             ),
         ];
         $dashboardAssets = array_merge($bladeViews, [
-            __DIR__.'/../config/pasax.php' => config_path('pasax.php'),
+            __DIR__ . "/../config/pasax.php" => config_path("pasax.php"),
         ]);
 
-        $this->publishes($dashboardAssets, 'pasax-web');
-        $this->publishes($dashboardAssets, 'plain-views');
-        $this->publishes($bladeViews, 'pasax-web-views');
+        $this->publishes($dashboardAssets, "pasax-web");
+        $this->publishes($dashboardAssets, "plain-views");
+        $this->publishes($bladeViews, "pasax-web-views");
 
         // AI Agent Skills (.agents/skills/pasax/SKILL.md)
         $this->publishes(
             [
-                __DIR__.'/../stubs/skills/pasax/SKILL.md' => base_path(
-                    '.agents/skills/pasax/SKILL.md',
+                __DIR__ . "/../stubs/skills/pasax/SKILL.md" => base_path(
+                    ".agents/skills/pasax/SKILL.md",
                 ),
             ],
-            'pasax-skills',
+            "pasax-skills",
         );
 
         // Language translations
         $this->publishes(
             [
-                __DIR__.'/../lang' => $this->app->langPath('vendor/pasax'),
+                __DIR__ . "/../lang" => $this->app->langPath("vendor/pasax"),
             ],
-            'pasax-lang',
+            "pasax-lang",
         );
 
-        $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
+        $this->loadMigrationsFrom(__DIR__ . "/../database/migrations");
     }
 
     protected function registerCommands(): void
     {
-        if (! $this->app->runningInConsole()) {
+        if (!$this->app->runningInConsole()) {
             return;
         }
 
@@ -335,6 +344,7 @@ class PasaxServiceProvider extends ServiceProvider
             PasaxInstallCommand::class,
             PasaxUninstallCommand::class,
             PasaxUpgradeCommand::class,
+            PasaxBackupCommand::class,
             PasaxPruneSecurityLogsCommand::class,
             PasaxUnblockIpCommand::class,
             PasaxScanAccessLogsCommand::class,
@@ -356,21 +366,21 @@ class PasaxServiceProvider extends ServiceProvider
 
     protected function registerRoutes(): void
     {
-        if (! config('pasax.routes.enabled', true)) {
+        if (!config("pasax.routes.enabled", true)) {
             return;
         }
 
         // Jika rute sudah didaftarkan (misalnya oleh routes/api.php di host), hindari duplikasi
-        if (Route::has('pasax.logs.index')) {
+        if (Route::has("pasax.logs.index")) {
             $this->ensureEssentialApiRoutes();
 
             return;
         }
 
         // Jika berkas rute kustom host ada, prioritaskan pemuatannya
-        $hostRouteFile = base_path('routes/pasax-api.php');
-        if (! file_exists($hostRouteFile)) {
-            $hostRouteFile = base_path('routes/pasax-service.php');
+        $hostRouteFile = base_path("routes/pasax-api.php");
+        if (!file_exists($hostRouteFile)) {
+            $hostRouteFile = base_path("routes/pasax-service.php");
         }
         if (file_exists($hostRouteFile)) {
             $this->loadRoutesFrom($hostRouteFile);
@@ -379,7 +389,7 @@ class PasaxServiceProvider extends ServiceProvider
             return;
         }
 
-        $this->loadRoutesFrom(__DIR__.'/../routes/pasax.php');
+        $this->loadRoutesFrom(__DIR__ . "/../routes/pasax.php");
     }
 
     /**
@@ -392,19 +402,19 @@ class PasaxServiceProvider extends ServiceProvider
      */
     protected function registerDashboardRoutes(): void
     {
-        if (! config('pasax.dashboard.enabled', false)) {
+        if (!config("pasax.dashboard.enabled", false)) {
             return;
         }
 
         // Jika rute dashboard sudah didaftarkan (misalnya oleh routes/web.php di host), hindari duplikasi
-        if (Route::has('pasax.dashboard.overview')) {
+        if (Route::has("pasax.dashboard.overview")) {
             $this->ensureEssentialDashboardRoutes();
 
             return;
         }
 
         // Jika berkas rute web kustom host ada, prioritaskan pemuatannya
-        $hostDashboardFile = base_path('routes/pasax.php');
+        $hostDashboardFile = base_path("routes/pasax.php");
         if (file_exists($hostDashboardFile)) {
             $this->loadRoutesFrom($hostDashboardFile);
             $this->ensureEssentialDashboardRoutes();
@@ -420,7 +430,7 @@ class PasaxServiceProvider extends ServiceProvider
      */
     protected function registerBladeDashboardRoutes(): void
     {
-        $this->loadRoutesFrom(__DIR__.'/../routes/pasax-web-blade.php');
+        $this->loadRoutesFrom(__DIR__ . "/../routes/pasax-web-blade.php");
     }
 
     /**
@@ -429,55 +439,74 @@ class PasaxServiceProvider extends ServiceProvider
      */
     protected function ensureEssentialApiRoutes(): void
     {
-        if (Route::has('pasax.server.location')) {
+        if (Route::has("pasax.server.location")) {
             return;
         }
 
-        $prefix = config('pasax.routes.prefix', 'api/pasax');
-        $middleware = config('pasax.routes.middleware', ['api']);
+        $prefix = config("pasax.routes.prefix", "api/pasax");
+        $middleware = config("pasax.routes.middleware", ["api"]);
 
         Route::prefix($prefix)
             ->middleware($middleware)
-            ->name('pasax.')
+            ->name("pasax.")
             ->group(function () {
-                Route::get('server/location', [
+                Route::get("server/location", [
                     PasaxServerSecurityApiController::class,
-                    'getLocation',
-                ])->name('server.location.get');
-                Route::post('server/location', [
+                    "getLocation",
+                ])->name("server.location.get");
+                Route::post("server/location", [
                     PasaxServerSecurityApiController::class,
-                    'updateLocation',
-                ])->name('server.location');
-                Route::get('server/report/export', [
+                    "updateLocation",
+                ])->name("server.location");
+                Route::get("server/report/export", [
                     PasaxServerSecurityApiController::class,
-                    'exportReport',
-                ])->name('server.report.export');
+                    "exportReport",
+                ])->name("server.report.export");
             });
     }
 
     /**
-     * Pastikan rute esensial dashboard baru (seperti konfigurasi lokasi & waktu server)
+     * Pastikan rute esensial dashboard baru (lokasi server, backup SQLite, login pemilik)
      * tetap terdaftar meskipun host menggunakan berkas routes/pasax.php dari versi lama.
      */
     protected function ensureEssentialDashboardRoutes(): void
     {
-        if (Route::has('pasax.dashboard.server.location')) {
+        $hasLocation = Route::has("pasax.dashboard.server.location");
+        $hasBackup = Route::has("pasax.dashboard.server.backup");
+        $hasOwnerLogin = Route::has("pasax.dashboard.login.owner");
+
+        if ($hasLocation && $hasBackup && $hasOwnerLogin) {
             return;
         }
 
-        $prefix = trim((string) config('pasax.dashboard.prefix', 'pasax'), '/');
-        if ($prefix === '') {
-            $prefix = 'pasax';
+        $prefix = trim((string) config("pasax.dashboard.prefix", "pasax"), "/");
+        if ($prefix === "") {
+            $prefix = "pasax";
+        }
+
+        if (!$hasOwnerLogin) {
+            Route::middleware(["web"])
+                ->prefix($prefix)
+                ->group(function () {
+                    Route::post("login/owner", [
+                        PasaxAuthController::class,
+                        "loginOwner",
+                    ])->name("pasax.dashboard.login.owner");
+                });
+        }
+
+        if ($hasLocation && $hasBackup) {
+            return;
         }
 
         $configuredMiddleware = array_filter(
-            (array) config('pasax.dashboard.middleware', ['web', 'auth']),
+            (array) config("pasax.dashboard.middleware", ["web", "auth"]),
         );
-        $authEnabled = (bool) config('pasax.dashboard.auth.enabled', true);
+        $authEnabled = (bool) config("pasax.dashboard.auth.enabled", true);
 
         $middleware = [];
         foreach ($configuredMiddleware as $m) {
-            if ($m === 'auth' && $authEnabled) {
+            if ($m === "auth" && $authEnabled) {
                 $middleware[] = PasaxDashboardAuthenticate::class;
             } else {
                 $middleware[] = $m;
@@ -486,34 +515,47 @@ class PasaxServiceProvider extends ServiceProvider
 
         if (
             $authEnabled &&
-            ! in_array(PasaxDashboardAuthenticate::class, $middleware, true)
+            !in_array(PasaxDashboardAuthenticate::class, $middleware, true)
         ) {
             $middleware[] = PasaxDashboardAuthenticate::class;
         }
 
         $middleware = array_values(array_unique(array_filter($middleware)));
         $adminMiddleware = array_filter(
-            (array) config('pasax.dashboard.admin_middleware', []),
+            (array) config("pasax.dashboard.admin_middleware", []),
         );
-        $rotating = (bool) config('pasax.dashboard.rotating', false);
+        $rotating = (bool) config("pasax.dashboard.rotating", false);
 
-        $registerRoutes = function () {
-            Route::post('server', [
-                PasaxServerController::class,
-                'updateLocation',
-            ]);
-            Route::post('server/location', [
-                PasaxServerController::class,
-                'updateLocation',
-            ])->name('server.location');
-            Route::get('server/report/export', [
-                PasaxServerController::class,
-                'exportReport',
-            ])->name('server.report.export');
-            Route::get('reports', [
-                PasaxServerController::class,
-                'reportPage',
-            ])->name('reports');
+        $registerRoutes = function () use ($hasLocation, $hasBackup) {
+            if (!$hasLocation) {
+                Route::post("server", [
+                    PasaxServerController::class,
+                    "updateLocation",
+                ]);
+                Route::post("server/location", [
+                    PasaxServerController::class,
+                    "updateLocation",
+                ])->name("server.location");
+                Route::get("server/report/export", [
+                    PasaxServerController::class,
+                    "exportReport",
+                ])->name("server.report.export");
+                Route::get("reports", [
+                    PasaxServerController::class,
+                    "reportPage",
+                ])->name("reports");
+            }
+
+            if (!$hasBackup) {
+                Route::post("server/backup", [
+                    PasaxServerController::class,
+                    "backupDatabase",
+                ])->name("server.backup");
+                Route::get("server/backup/download", [
+                    PasaxServerController::class,
+                    "downloadBackup",
+                ])->name("server.backup.download");
+            }
         };
 
         if ($rotating) {
@@ -522,16 +564,17 @@ class PasaxServiceProvider extends ServiceProvider
                     PasaxRotatingDashboard::class,
                 ]),
             )
-                ->prefix('{pasaxSlug}')
+                ->prefix("{pasaxSlug}")
                 ->where([
-                    'pasaxSlug' => preg_quote($prefix, '/').'-[A-Za-z0-9]{12,32}',
+                    "pasaxSlug" =>
+                        preg_quote($prefix, "/") . "-[A-Za-z0-9]{12,32}",
                 ])
-                ->name('pasax.dashboard.')
+                ->name("pasax.dashboard.")
                 ->group($registerRoutes);
         } else {
             Route::middleware(array_merge($middleware, $adminMiddleware))
                 ->prefix($prefix)
-                ->name('pasax.dashboard.')
+                ->name("pasax.dashboard.")
                 ->group($registerRoutes);
         }
     }
@@ -543,22 +586,22 @@ class PasaxServiceProvider extends ServiceProvider
      */
     protected function registerDashboardUrlDefaults(): void
     {
-        if (! (bool) config('pasax.dashboard.rotating', false)) {
+        if (!(bool) config("pasax.dashboard.rotating", false)) {
             return;
         }
 
-        $base = trim((string) config('pasax.dashboard.prefix', 'pasax'), '/');
+        $base = trim((string) config("pasax.dashboard.prefix", "pasax"), "/");
 
-        if ($base === '') {
-            $base = 'pasax';
+        if ($base === "") {
+            $base = "pasax";
         }
 
-        URL::defaults(['pasaxSlug' => $base]);
+        URL::defaults(["pasaxSlug" => $base]);
 
         try {
             $router = $this->app->make(Router::class);
             $router->pushMiddlewareToGroup(
-                'web',
+                "web",
                 PasaxShareDashboardSlug::class,
             );
         } catch (\Throwable) {
@@ -568,12 +611,12 @@ class PasaxServiceProvider extends ServiceProvider
 
     protected function registerSchedule(): void
     {
-        if (! config('pasax.schedule.enabled', true)) {
+        if (!config("pasax.schedule.enabled", true)) {
             return;
         }
 
         $this->app->booted(function (): void {
-            if (! $this->app->runningInConsole()) {
+            if (!$this->app->runningInConsole()) {
                 return;
             }
 
@@ -581,8 +624,8 @@ class PasaxServiceProvider extends ServiceProvider
                 $schedule = $this->app->make(Schedule::class);
 
                 // Daily log prune
-                $pruneAt = config('pasax.schedule.prune_at', '02:30');
-                $schedule->command('pasax:prune-logs')->dailyAt($pruneAt);
+                $pruneAt = config("pasax.schedule.prune_at", "02:30");
+                $schedule->command("pasax:prune-logs")->dailyAt($pruneAt);
 
                 // Scheduler Heartbeat
                 $schedule
@@ -594,14 +637,14 @@ class PasaxServiceProvider extends ServiceProvider
                         );
                     })
                     ->everyMinute()
-                    ->name('pasax-heartbeat');
+                    ->name("pasax-heartbeat");
 
                 // Access log auto-scan
-                if (config('pasax.access_log.auto_scan_enabled', false)) {
+                if (config("pasax.access_log.auto_scan_enabled", false)) {
                     $hours = max(
                         1,
                         (int) config(
-                            'pasax.access_log.auto_scan_since_hours',
+                            "pasax.access_log.auto_scan_since_hours",
                             24,
                         ),
                     );
@@ -612,8 +655,8 @@ class PasaxServiceProvider extends ServiceProvider
                                 $hours,
                             ),
                         )
-                        ->dailyAt('03:00')
-                        ->name('pasax-scan-access-logs');
+                        ->dailyAt("03:00")
+                        ->name("pasax-scan-access-logs");
                 }
             } catch (\Throwable) {
                 // Ignore schedule registration errors if Schedule is not bound
@@ -623,14 +666,18 @@ class PasaxServiceProvider extends ServiceProvider
 
     protected function registerGate(): void
     {
-        if (! Gate::has('manage-pasax')) {
-            Gate::define('manage-pasax', function ($user) {
-                if (method_exists($user, 'isAdmin')) {
+        if (!Gate::has("manage-pasax")) {
+            Gate::define("manage-pasax", function ($user) {
+                if (PasaxDashboardSecret::matchesOwnerAccount($user)) {
+                    return true;
+                }
+
+                if (method_exists($user, "isAdmin")) {
                     return (bool) $user->isAdmin();
                 }
 
                 if (
-                    in_array($user->role ?? null, ['admin', 'superadmin'], true)
+                    in_array($user->role ?? null, ["admin", "superadmin"], true)
                 ) {
                     return true;
                 }
@@ -640,10 +687,10 @@ class PasaxServiceProvider extends ServiceProvider
                 }
 
                 if (isset($user->role)) {
-                    return in_array($user->role, ['admin', 'superadmin'], true);
+                    return in_array($user->role, ["admin", "superadmin"], true);
                 }
 
-                return ! (bool) config('pasax.dashboard.admin_only', false);
+                return !(bool) config("pasax.dashboard.admin_only", false);
             });
         }
     }
@@ -652,32 +699,32 @@ class PasaxServiceProvider extends ServiceProvider
     {
         $router = $this->app->make(Router::class);
         $router->aliasMiddleware(
-            'pasax.admin',
+            "pasax.admin",
             PasaxEnsureSecurityAdmin::class,
         );
-        $router->aliasMiddleware('pasax.block', PasaxBlockIpAddress::class);
+        $router->aliasMiddleware("pasax.block", PasaxBlockIpAddress::class);
         $router->aliasMiddleware(
-            'pasax.detect',
+            "pasax.detect",
             PasaxDetectSecurityThreats::class,
         );
         $router->aliasMiddleware(
-            'pasax.activity',
+            "pasax.activity",
             PasaxTrackUserActivity::class,
         );
         $router->aliasMiddleware(
-            'pasax.announce',
+            "pasax.announce",
             PasaxInjectAnnouncementBanner::class,
         );
         $router->aliasMiddleware(
-            'pasax.rotating',
+            "pasax.rotating",
             PasaxRotatingDashboard::class,
         );
         $router->aliasMiddleware(
-            'pasax.share-slug',
+            "pasax.share-slug",
             PasaxShareDashboardSlug::class,
         );
 
-        if (config('pasax.auto_register_middleware', false)) {
+        if (config("pasax.auto_register_middleware", false)) {
             $this->app->booted(function (): void {
                 $kernel = $this->app->make(KernelContract::class);
 
@@ -698,18 +745,18 @@ class PasaxServiceProvider extends ServiceProvider
      */
     protected function registerVersionCheck(): void
     {
-        if (! $this->app->runningInConsole()) {
+        if (!$this->app->runningInConsole()) {
             return;
         }
 
-        if (! (bool) config('pasax.version_check.enabled', true)) {
+        if (!(bool) config("pasax.version_check.enabled", true)) {
             return;
         }
 
         Event::listen(CommandStarting::class, function (
             CommandStarting $event,
         ): void {
-            if (! in_array($event->command, ['serve', 'dev'], true)) {
+            if (!in_array($event->command, ["serve", "dev"], true)) {
                 return;
             }
 

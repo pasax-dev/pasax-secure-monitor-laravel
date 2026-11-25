@@ -41,7 +41,7 @@ class PasaxCloudService
         ?PasaxSentinelBridge $sentinel = null
     ) {
         $this->cloudKey = $cloudKey ?? config('pasax.cloud.key');
-        $this->cloudUrl = rtrim($cloudUrl ?? config('pasax.cloud.url', 'https://pasax-service.vercel.app'), '/');
+        $this->cloudUrl = rtrim($cloudUrl ?? config('pasax.cloud.url', 'https://service.pasax.web.id'), '/');
         $this->timeout = $timeout ?? (float) config('pasax.cloud.timeout', 3.0);
         $this->enabled = $enabled ?? (bool) config('pasax.cloud.enabled', true);
         $this->sentinel = $sentinel ?? (app()->bound(PasaxSentinelBridge::class) ? app(PasaxSentinelBridge::class) : null);

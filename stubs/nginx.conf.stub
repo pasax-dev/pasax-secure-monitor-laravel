@@ -137,7 +137,7 @@ server {
     }
 
     # Berkas backup / dump / config tidak boleh diunduh bila ikut tersalin ke public.
-    location ~* \.(sql|bak|old|orig|save|swp|log|env|ini|conf|yml|yaml)$ {
+    location ~* \.(sql|sqlite|sqlite3|sqlite-wal|sqlite-shm|db|bak|old|orig|save|swp|log|env|ini|conf|yml|yaml)$ {
         return 403;
     }
 

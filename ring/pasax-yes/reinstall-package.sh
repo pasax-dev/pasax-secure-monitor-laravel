@@ -50,7 +50,7 @@ fi
 
 # Pastikan seluruh berkas publikasi dan sisa backup dibersihkan total
 rm -f config/pasax.php config/security.php
-rm -f routes/pasax.php routes/pasax-service.php
+rm -f routes/pasax.php routes/pasax-api.php routes/pasax-service.php
 
 # Bersihkan baris penyertaan rute yatim di routes/web.php dan routes/api.php
 php -r '

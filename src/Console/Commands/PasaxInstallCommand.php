@@ -4,12 +4,11 @@ namespace Pasax\SecureMonitor\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Foundation\Application;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Schema;
 use Pasax\SecureMonitor\Database\Seeders\PasaxDefaultSettingsSeeder;
 use Pasax\SecureMonitor\Services\PasaxService;
 use Pasax\SecureMonitor\Support\PasaxDashboardSecret;
+use Pasax\SecureMonitor\Support\PasaxDatabase;
 
 class PasaxInstallCommand extends Command
 {
@@ -30,7 +29,7 @@ class PasaxInstallCommand extends Command
 
     protected $signature = 'pasax:install
                             {--api-key= : Pasax License API Key dari Superadmin (wajib: format psk_live_...)}
-                            {--api-url= : Pasax Cloud Service Base URL (default: https://pasax-service.vercel.app)}
+                            {--api-url= : Pasax Cloud Service Base URL (default: https://service.pasax.web.id)}
                             {--skip-cloud-verify : Lewati verifikasi cloud (hanya untuk pengujian unit internal)}
                             {--force : Timpa berkas konfigurasi, migrasi, nginx, htaccess, dan halaman blokir yang sudah ada}
                             {--lang= : Bahasa wizard instalasi (id|en)}
@@ -101,12 +100,14 @@ class PasaxInstallCommand extends Command
 
         // 0b. Validasi Wajib: Pasax License API Key & Konektivitas Internet
         $apiKey = trim((string) ($this->option('api-key') ?? ''));
-        $apiUrl = trim((string) ($this->option('api-url') ?? config('pasax.cloud.url', 'https://pasax-service.vercel.app')));
+        $apiUrl = trim((string) ($this->option('api-url') ?? config('pasax.cloud.url', 'https://service.pasax.web.id')));
         if ($apiUrl === '') {
-            $apiUrl = 'https://pasax-service.vercel.app';
+            $apiUrl = 'https://service.pasax.web.id';
         }
 
         $skipCloudVerify = (bool) $this->option('skip-cloud-verify');
+        /** @var array<string, mixed> $ownerData */
+        $ownerData = [];
 
         if (app()->runningUnitTests() && ! $this->option('api-key') && $apiKey === '') {
             $skipCloudVerify = true;
@@ -183,8 +184,13 @@ class PasaxInstallCommand extends Command
                 return self::FAILURE;
             }
 
-            $userPlan = strtoupper((string) ($verification['data']['user']['plan'] ?? 'PRO'));
-            $userName = (string) ($verification['data']['user']['name'] ?? 'Fleet Admin');
+            $ownerData = is_array($verification['data']['user'] ?? null)
+                ? $verification['data']['user']
+                : [];
+            $userPlan = strtoupper((string) ($ownerData['plan'] ?? 'PRO'));
+            $userName = (string) ($ownerData['name'] ?? 'Fleet Admin');
+            $ownerEmail = trim((string) ($ownerData['email'] ?? ''));
+            $ownerUsername = PasaxDashboardSecret::deriveUsernameFromUserData($ownerData);
             $licenseName = (string) ($verification['data']['license_key']['name'] ?? 'Production License');
 
             $this->info(
@@ -199,6 +205,15 @@ class PasaxInstallCommand extends Command
                     "  ✓ License API Key verified: [{$userPlan}] {$licenseName} (Owner: {$userName})",
                 ),
             );
+            if ($ownerEmail !== '' || $ownerUsername !== '') {
+                $ownerLabel = trim($ownerUsername.($ownerEmail !== '' ? " <{$ownerEmail}>" : ''));
+                $this->info(
+                    $this->t(
+                        "  ✓ Akun pemilik terikat: {$ownerLabel} (akses dashboard passwordless aktif via sesi host / SSO)",
+                        "  ✓ Owner account bound: {$ownerLabel} (passwordless dashboard access active via host session / SSO)",
+                    ),
+                );
+            }
             $this->newLine();
         }
 
@@ -236,6 +251,19 @@ class PasaxInstallCommand extends Command
             '--tag' => 'pasax-config',
             '--force' => $force,
         ]);
+
+        // 1b. Siapkan direktori & berkas SQLite terisolasi (di luar public/)
+        if (PasaxDatabase::isSqlite() && PasaxDatabase::sqlitePath() !== ':memory:') {
+            $storagePrep = PasaxDatabase::ensureStorageReady();
+            PasaxDatabase::configureConnection();
+            $relSqlite = $this->relativePath($storagePrep['sqlite_path']);
+            $this->info(
+                $this->t(
+                    "  ✓ Database SQLite terisolasi siap di {$relSqlite} (terlindung .gitignore).",
+                    "  ✓ Isolated SQLite database ready at {$relSqlite} (.gitignore protected).",
+                ),
+            );
+        }
 
         // 2. Publish Migrations
         $this->comment('Mempublikasikan berkas migrasi database...');
@@ -342,7 +370,7 @@ class PasaxInstallCommand extends Command
             $this->comment(
                 'Menyematkan variabel konfigurasi dan panduan ke berkas .env...',
             );
-            $this->appendEnvironmentVariables($withDashboard, $apiKey, $apiUrl);
+            $this->appendEnvironmentVariables($withDashboard, $apiKey, $apiUrl, $ownerData);
         }
 
         // 12. Setup AI Agent Skills (.agents/skills/pasax/SKILL.md) & AGENTS.md guidelines
@@ -385,17 +413,32 @@ class PasaxInstallCommand extends Command
             }
         }
 
+        if ($migrated) {
+            $isoSync = PasaxDatabase::ensureIsolatedSchemaReady(true);
+            if ($isoSync['migrated']) {
+                $this->info(
+                    $this->t(
+                        '  ✓ Skema SQLite terisolasi berhasil disiapkan ('.PasaxDatabase::toRelativePath(PasaxDatabase::sqlitePath()).').',
+                        '  ✓ Isolated SQLite schema initialized ('.PasaxDatabase::toRelativePath(PasaxDatabase::sqlitePath()).').',
+                    ),
+                );
+            }
+        }
+
         // 4b. Tanam nilai bawaan pengaturan keamanan ke database (siap diedit di dashboard).
         $seededKeys = [];
 
         if (
             $migrated ||
-            Schema::hasTable(
+            PasaxDatabase::schema()->hasTable(
                 (string) config('pasax.table_names.settings', 'pasax_settings'),
             )
         ) {
             try {
                 $seededKeys = app(PasaxDefaultSettingsSeeder::class)->run();
+                if ($ownerData !== []) {
+                    PasaxDashboardSecret::storeOwnerIdentityInDatabase($ownerData);
+                }
 
                 $this->newLine();
 
@@ -537,6 +580,18 @@ class PasaxInstallCommand extends Command
             '* * * * * cd /path-ke-proyek && php artisan schedule:run >> /dev/null 2>&1',
             $doc('cli-automation/scheduled-tasks'),
         ];
+        if (PasaxDatabase::isSqlite()) {
+            $relSqlitePath = PasaxDatabase::toRelativePath(PasaxDatabase::sqlitePath());
+            $relBackupDir = PasaxDatabase::toRelativePath(PasaxDatabase::backupDirectory());
+            $steps[] = [
+                $this->t(
+                    "Database terisolasi SQLite ({$relSqlitePath}) — cadangkan aman kapan saja (atau via /pasax/server):",
+                    "Isolated SQLite database ({$relSqlitePath}) — create safe snapshots anytime (or via /pasax/server):",
+                ),
+                "php artisan pasax:backup   # disimpan ke {$relBackupDir}/",
+                $doc('getting-started/installation'),
+            ];
+        }
         $steps[] = [
             $this->t(
                 'Buat baseline integritas berkas (deteksi backdoor):',
@@ -682,17 +737,23 @@ class PasaxInstallCommand extends Command
         ];
 
         try {
-            DB::connection()->getPdo();
+            PasaxDatabase::connection()->getPdo();
+            $dbCheckLabel = PasaxDatabase::isSqlite()
+                ? $this->t(
+                    'Koneksi database Pasax (SQLite terisolasi: '.PasaxDatabase::toRelativePath(PasaxDatabase::sqlitePath()).')',
+                    'Pasax database connection (isolated SQLite: '.PasaxDatabase::toRelativePath(PasaxDatabase::sqlitePath()).')',
+                )
+                : $this->t('Koneksi database Pasax', 'Pasax database connection');
             $checks[] = [
                 true,
-                $this->t('Koneksi database', 'Database connection'),
+                $dbCheckLabel,
             ];
         } catch (\Throwable) {
             $checks[] = [
                 false,
                 $this->t(
-                    'Koneksi database (periksa DB_* di .env)',
-                    'Database connection (check DB_* in .env)',
+                    'Koneksi database Pasax (periksa PASAX_DB_* / DB_* di .env)',
+                    'Pasax database connection (check PASAX_DB_* / DB_* in .env)',
                 ),
             ];
         }
@@ -834,11 +895,14 @@ class PasaxInstallCommand extends Command
 
     /**
      * Sematkan variabel konfigurasi lingkungan dan penjelasannya ke berkas .env & .env.example.
+     *
+     * @param  array<string, mixed>  $ownerData
      */
     protected function appendEnvironmentVariables(
         bool $withDashboard = false,
         string $apiKey = '',
         string $apiUrl = '',
+        array $ownerData = [],
     ): void {
         $stubPath = __DIR__.'/../../../stubs/env.stub';
         if (! File::exists($stubPath)) {
@@ -893,8 +957,10 @@ class PasaxInstallCommand extends Command
                     $updated = $this->ensureRotatingEnvKeys($updated);
                 }
 
-                if ($envFile === '.env' && $apiKey !== '') {
-                    $updated = $this->injectLicenseKeysIntoEnvContent($updated, $apiKey, $apiUrl);
+                $updated = $this->ensureDatabaseEnvKeys($updated);
+
+                if ($envFile === '.env' && ($apiKey !== '' || $ownerData !== [])) {
+                    $updated = $this->injectLicenseKeysIntoEnvContent($updated, $apiKey, $apiUrl, $ownerData);
                 }
 
                 if ($updated !== $currentContent) {
@@ -912,8 +978,8 @@ class PasaxInstallCommand extends Command
             }
 
             $contentToAppend = $stubContent;
-            if ($envFile === '.env' && $apiKey !== '') {
-                $contentToAppend = $this->injectLicenseKeysIntoEnvContent($contentToAppend, $apiKey, $apiUrl);
+            if ($envFile === '.env' && ($apiKey !== '' || $ownerData !== [])) {
+                $contentToAppend = $this->injectLicenseKeysIntoEnvContent($contentToAppend, $apiKey, $apiUrl, $ownerData);
             }
             File::append($targetPath, $contentToAppend);
             $this->info(
@@ -965,6 +1031,32 @@ class PasaxInstallCommand extends Command
 
         if (! str_contains($content, PasaxDashboardSecret::ENV_KEY.'=')) {
             $content = rtrim($content)."\n".PasaxDashboardSecret::ENV_KEY."=\n";
+        }
+
+        return $content;
+    }
+
+    /**
+     * Pastikan variabel database terisolasi (`PASAX_DB_*`) dan owner access
+     * tersedia di `.env` tanpa menimpa pengaturan eksplisit pengguna.
+     */
+    protected function ensureDatabaseEnvKeys(string $content): string
+    {
+        $defaults = [
+            'PASAX_DB_CONNECTION' => PasaxDatabase::DEFAULT_CONNECTION,
+            'PASAX_DB_PATH' => PasaxDatabase::DEFAULT_RELATIVE_PATH,
+            'PASAX_DB_BACKUP_PATH' => PasaxDatabase::DEFAULT_RELATIVE_BACKUP_DIR,
+            'PASAX_DB_SQLITE_WAL' => 'true',
+            'PASAX_DB_SQLITE_BUSY_TIMEOUT' => '5000',
+            PasaxDashboardSecret::OWNER_EMAIL_ENV_KEY => '',
+            PasaxDashboardSecret::OWNER_USERNAME_ENV_KEY => '',
+            PasaxDashboardSecret::PASSWORDLESS_OWNER_ENV_KEY => 'true',
+        ];
+
+        foreach ($defaults as $key => $value) {
+            if (! str_contains($content, $key.'=')) {
+                $content = rtrim($content)."\n{$key}={$value}\n";
+            }
         }
 
         return $content;
@@ -1789,30 +1881,50 @@ MARKDOWN;
     }
 
     /**
-     * Menyuntikkan kunci lisensi dan URL Cloud API ke dalam konten .env.
+     * Menyuntikkan kunci lisensi, URL Cloud API, dan identitas pemilik akun ke dalam konten .env.
+     *
+     * @param  array<string, mixed>  $ownerData
      */
-    protected function injectLicenseKeysIntoEnvContent(string $content, string $apiKey, string $apiUrl): string
-    {
-        if (str_contains($content, 'PASAX_LICENSE_KEY=')) {
-            $content = (string) preg_replace('/PASAX_LICENSE_KEY=[^\r\n]*/', "PASAX_LICENSE_KEY={$apiKey}", $content);
-        } else {
-            $content = rtrim($content)."\nPASAX_LICENSE_KEY={$apiKey}\n";
-        }
-
-        if (str_contains($content, 'PASAX_CLOUD_KEY=')) {
-            $content = (string) preg_replace('/PASAX_CLOUD_KEY=[^\r\n]*/', "PASAX_CLOUD_KEY={$apiKey}", $content);
-        } else {
-            $content = rtrim($content)."\nPASAX_CLOUD_KEY={$apiKey}\n";
+    protected function injectLicenseKeysIntoEnvContent(
+        string $content,
+        string $apiKey,
+        string $apiUrl,
+        array $ownerData = [],
+    ): string {
+        if ($apiKey !== '') {
+            $content = $this->upsertEnvKeyInContent($content, 'PASAX_LICENSE_KEY', $apiKey);
+            $content = $this->upsertEnvKeyInContent($content, 'PASAX_CLOUD_KEY', $apiKey);
         }
 
         if ($apiUrl !== '') {
-            if (str_contains($content, 'PASAX_API_URL=')) {
-                $content = (string) preg_replace('/PASAX_API_URL=[^\r\n]*/', "PASAX_API_URL={$apiUrl}", $content);
-            } else {
-                $content = rtrim($content)."\nPASAX_API_URL={$apiUrl}\n";
+            $content = $this->upsertEnvKeyInContent($content, 'PASAX_API_URL', $apiUrl);
+        }
+
+        if ($ownerData !== []) {
+            $ownerEmail = strtolower(trim((string) ($ownerData['email'] ?? '')));
+            $ownerUsername = PasaxDashboardSecret::deriveUsernameFromUserData($ownerData);
+
+            if ($ownerEmail !== '') {
+                $content = $this->upsertEnvKeyInContent($content, PasaxDashboardSecret::OWNER_EMAIL_ENV_KEY, $ownerEmail);
             }
+            if ($ownerUsername !== '') {
+                $content = $this->upsertEnvKeyInContent($content, PasaxDashboardSecret::OWNER_USERNAME_ENV_KEY, $ownerUsername);
+            }
+            $content = $this->upsertEnvKeyInContent($content, PasaxDashboardSecret::PASSWORDLESS_OWNER_ENV_KEY, 'true');
         }
 
         return $content;
+    }
+
+    protected function upsertEnvKeyInContent(string $content, string $key, string $value): string
+    {
+        $pattern = '/^'.preg_quote($key, '/').'=[^\r\n]*/m';
+        $line = "{$key}={$value}";
+
+        if (preg_match($pattern, $content) === 1) {
+            return (string) preg_replace($pattern, $line, $content, 1);
+        }
+
+        return rtrim($content)."\n{$line}\n";
     }
 }

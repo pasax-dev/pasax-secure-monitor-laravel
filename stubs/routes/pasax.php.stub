@@ -29,6 +29,7 @@ use Pasax\SecureMonitor\Http\Middleware\PasaxRotatingDashboard;
 | Dilindungi oleh middleware autentikasi mandiri Pasax:
 | - Username: PASAX_DASHBOARD_USERNAME (default: admin)
 | - Password: PASAX_DASHBOARD_SECRET (secret password server)
+| - Pemilik terikat akun: PASAX_OWNER_EMAIL / PASAX_OWNER_USERNAME
 |
 | Mode URL acak sekali pakai (PASAX_DASHBOARD_ROTATING=true):
 | pintu stabil "/pasax" 302 ke "/pasax-{token}/" milik sesi pengguna.
@@ -75,6 +76,8 @@ Route::middleware(['web'])
             ->name('pasax.dashboard.login');
         Route::post('login', [PasaxAuthController::class, 'login'])
             ->name('pasax.dashboard.login.submit');
+        Route::post('login/owner', [PasaxAuthController::class, 'loginOwner'])
+            ->name('pasax.dashboard.login.owner');
         Route::post('logout', [PasaxAuthController::class, 'logout'])
             ->name('pasax.dashboard.logout');
         Route::post('password', [PasaxAuthController::class, 'updatePassword'])
@@ -107,6 +110,8 @@ $registerPasaxDashboard = function () {
     Route::post('server/suspicious-files/verify', [PasaxServerController::class, 'verifySuspiciousFile'])->name('server.suspicious-files.verify');
     Route::post('server/suspicious-files/unverify', [PasaxServerController::class, 'unverifySuspiciousFile'])->name('server.suspicious-files.unverify');
     Route::post('server/location', [PasaxServerController::class, 'updateLocation'])->name('server.location');
+    Route::post('server/backup', [PasaxServerController::class, 'backupDatabase'])->name('server.backup');
+    Route::get('server/backup/download', [PasaxServerController::class, 'downloadBackup'])->name('server.backup.download');
     Route::get('server/report/export', [PasaxServerController::class, 'exportReport'])->name('server.report.export');
     Route::get('reports', [PasaxServerController::class, 'reportPage'])->name('reports');
     Route::post('optimize-clear', [PasaxServerController::class, 'optimizeClear'])->name('optimize-clear');

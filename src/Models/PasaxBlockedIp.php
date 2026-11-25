@@ -67,9 +67,10 @@ class PasaxBlockedIp extends Model
      */
     public function blockedBy(): BelongsTo
     {
-        return $this->belongsTo(
+        return $this->belongsToHostModel(
             config('pasax.user_model', 'App\\Models\\User'),
             'blocked_by',
+            relation: 'blockedBy',
         );
     }
 

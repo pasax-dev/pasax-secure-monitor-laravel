@@ -10,6 +10,7 @@ use Pasax\SecureMonitor\Database\Seeders\PasaxDefaultSettingsSeeder;
 use Pasax\SecureMonitor\Services\PasaxService;
 use Pasax\SecureMonitor\Services\PasaxVersionCheckService;
 use Pasax\SecureMonitor\Support\PasaxDashboardSecret;
+use Pasax\SecureMonitor\Support\PasaxDatabase;
 use Symfony\Component\Process\Process;
 use Throwable;
 
@@ -154,6 +155,7 @@ class PasaxUpgradeCommand extends Command
 
         // 2. Publish & Run Migrations
         $this->comment('2/6. Menyinkronkan dan menerapkan migrasi database...');
+        PasaxDatabase::prepareForMigration();
         $existingMigrationFiles = File::isDirectory(database_path('migrations'))
             ? File::files(database_path('migrations'))
             : [];
@@ -182,6 +184,17 @@ class PasaxUpgradeCommand extends Command
             } else {
                 $this->call('migrate', ['--force' => true]);
                 $this->info('  ✓ Skema database mutakhir (tidak ada migrasi baru yang tertunda).');
+            }
+
+            if (PasaxDatabase::isSeparateConnection()) {
+                $isoSync = PasaxDatabase::ensureIsolatedSchemaReady(true);
+                if ($isoSync['migrated']) {
+                    $relIso = PasaxDatabase::toRelativePath(PasaxDatabase::sqlitePath());
+                    $this->info("  ✓ Skema SQLite terisolasi ({$relIso}) berhasil disiapkan.");
+                }
+                if ($isoSync['copied_rows'] > 0) {
+                    $this->info("  ✓ {$isoSync['copied_rows']} baris data Pasax lama disalin ke SQLite terisolasi.");
+                }
             }
         } else {
             $this->comment('  (Migrasi database dilewati via --no-migrate).');
@@ -392,14 +405,41 @@ class PasaxUpgradeCommand extends Command
         $webRoutePath = base_path('routes/pasax.php');
         if (File::exists($webRoutePath)) {
             $content = File::get($webRoutePath);
+            $changed = false;
+
+            if (! str_contains($content, 'pasax.dashboard.login.owner')) {
+                $loginAnchor = "->name('pasax.dashboard.login.submit');";
+                if (str_contains($content, $loginAnchor)) {
+                    $authCtrl = str_contains($content, 'PasaxAuthController;')
+                        ? 'PasaxAuthController::class'
+                        : '\\Pasax\\SecureMonitor\\Http\\Controllers\\Dashboard\\PasaxAuthController::class';
+                    $loginInsert = $loginAnchor."\n        Route::post('login/owner', [{$authCtrl}, 'loginOwner'])\n            ->name('pasax.dashboard.login.owner');";
+                    $content = str_replace($loginAnchor, $loginInsert, $content);
+                    $changed = true;
+                }
+            }
+
             if (! str_contains($content, "'server.location'")) {
                 $search = "Route::post('server/suspicious-files/unverify', [PasaxServerController::class, 'unverifySuspiciousFile'])->name('server.suspicious-files.unverify');";
                 if (str_contains($content, $search)) {
                     $insert = $search."\n    Route::post('server', [PasaxServerController::class, 'updateLocation']);\n    Route::post('server/location', [PasaxServerController::class, 'updateLocation'])->name('server.location');";
                     $content = str_replace($search, $insert, $content);
-                    File::put($webRoutePath, $content);
-                    $this->info('  ✓ Rute server/location berhasil disematkan ke routes/pasax.php.');
+                    $changed = true;
                 }
+            }
+
+            if (! str_contains($content, "'server.backup'")) {
+                $backupSearch = "Route::post('server/location', [PasaxServerController::class, 'updateLocation'])->name('server.location');";
+                if (str_contains($content, $backupSearch)) {
+                    $backupInsert = $backupSearch."\n    Route::post('server/backup', [PasaxServerController::class, 'backupDatabase'])->name('server.backup');\n    Route::get('server/backup/download', [PasaxServerController::class, 'downloadBackup'])->name('server.backup.download');";
+                    $content = str_replace($backupSearch, $backupInsert, $content);
+                    $changed = true;
+                }
+            }
+
+            if ($changed) {
+                File::put($webRoutePath, $content);
+                $this->info('  ✓ Rute terbaru (location/backup/owner) berhasil disematkan ke routes/pasax.php.');
             }
         }
 
@@ -549,18 +589,22 @@ class PasaxUpgradeCommand extends Command
             }
         }
 
-        // 1b. URL dashboard acak sekali pakai: lengkapi kunci yang belum ada
-        // bila dashboard aktif, tanpa menimpa pilihan eksplisit pengguna.
+        // 1b. URL dashboard acak sekali pakai & database SQLite terisolasi: lengkapi
+        // kunci yang belum ada tanpa menimpa pilihan eksplisit pengguna.
         $this->ensureRotatingEnvKeys();
+        $this->ensureDatabaseEnvKeys();
 
         // 2. config/pasax.php host versi lama: migrasikan default table_names ke prefix pasax_
         //    (kunci baru otomatis diisi dari bawaan paket saat runtime via mergeConfigFrom).
         $this->migrateLegacyTableNamesInConfig();
+        $this->migrateDatabaseKeysInConfig();
         // 2b. config/pasax.php host versi lama: sisipkan kunci URL dashboard acak
         // sekali pakai (nested, tidak tercakup mergeConfigFrom yang dangkal).
         $this->migrateDashboardRotatingKeysInConfig();
+        $this->migrateOwnerAuthKeysInConfig();
         $this->migrateDashboardThreatMapInConfig();
         $this->migrateSentinelInConfig();
+        $this->migrateSqliteProbeRulesInConfig();
         $this->line(
             '  ✓ Kunci config baru dicakup bawaan paket (tidak ada kustomisasi yang ditimpa).',
         );
@@ -670,6 +714,162 @@ class PasaxUpgradeCommand extends Command
             $this->info(
                 '  ✓ PASAX_DASHBOARD_SECRET unik dibuat untuk berkas .env.',
             );
+        }
+    }
+
+    /**
+     * Lengkapi kunci database SQLite terisolasi (`PASAX_DB_*`) & akses owner pada `.env`
+     * tanpa menimpa pengaturan eksplisit pengguna.
+     */
+    protected function ensureDatabaseEnvKeys(): void
+    {
+        $defaults = [
+            'PASAX_DB_CONNECTION' => PasaxDatabase::DEFAULT_CONNECTION,
+            'PASAX_DB_PATH' => PasaxDatabase::DEFAULT_RELATIVE_PATH,
+            'PASAX_DB_BACKUP_PATH' => PasaxDatabase::DEFAULT_RELATIVE_BACKUP_DIR,
+            'PASAX_DB_SQLITE_WAL' => 'true',
+            'PASAX_DB_SQLITE_BUSY_TIMEOUT' => '5000',
+            PasaxDashboardSecret::OWNER_EMAIL_ENV_KEY => '',
+            PasaxDashboardSecret::OWNER_USERNAME_ENV_KEY => '',
+            PasaxDashboardSecret::PASSWORDLESS_OWNER_ENV_KEY => 'true',
+        ];
+
+        foreach (['.env', '.env.example'] as $envFile) {
+            $path = base_path($envFile);
+
+            if (! File::exists($path)) {
+                continue;
+            }
+
+            $content = File::get($path);
+            $original = $content;
+
+            foreach ($defaults as $key => $value) {
+                if (preg_match('/^'.preg_quote($key, '/').'=/m', $content) !== 1) {
+                    $content = rtrim($content)."\n{$key}={$value}\n";
+                }
+            }
+
+            if ($content !== $original) {
+                File::put($path, $content);
+                $this->info(
+                    "  ✓ Kunci database SQLite terisolasi & akses owner dilengkapi di {$envFile}.",
+                );
+            }
+        }
+    }
+
+    /**
+     * Sisipkan konfigurasi `database` (SQLite terisolasi) ke config/pasax.php host jika belum ada.
+     */
+    protected function migrateDatabaseKeysInConfig(): void
+    {
+        $configPath = config_path('pasax.php');
+
+        if (! File::exists($configPath)) {
+            return;
+        }
+
+        $content = File::get($configPath);
+        if (str_contains($content, "'database' =>")) {
+            return;
+        }
+
+        $anchor = "'table_names' => [";
+        if (! str_contains($content, $anchor)) {
+            return;
+        }
+
+        $block = <<<'PHP'
+    'database' => [
+        'connection' => env('PASAX_DB_CONNECTION', 'pasax_sqlite'),
+        'path' => env('PASAX_DB_PATH', storage_path('app/pasax/pasax.sqlite')),
+        'backup_path' => env('PASAX_DB_BACKUP_PATH', storage_path('app/pasax/backups')),
+        'sqlite_wal' => (bool) env('PASAX_DB_SQLITE_WAL', true),
+        'sqlite_busy_timeout' => (int) env('PASAX_DB_SQLITE_BUSY_TIMEOUT', 5000),
+    ],
+
+    'table_names' => [
+PHP;
+
+        $updated = str_replace($anchor, $block, $content);
+        if ($updated !== $content) {
+            File::put($configPath, $updated);
+            $this->info('  ✓ Konfigurasi database SQLite terisolasi disisipkan ke config/pasax.php.');
+        }
+    }
+
+    /**
+     * Sisipkan kunci owner passwordless ke blok `dashboard.auth` pada config/pasax.php jika belum ada.
+     */
+    protected function migrateOwnerAuthKeysInConfig(): void
+    {
+        $configPath = config_path('pasax.php');
+
+        if (! File::exists($configPath)) {
+            return;
+        }
+
+        $content = File::get($configPath);
+        if (str_contains($content, "'owner_email' =>")) {
+            return;
+        }
+
+        $anchor = "'default_password' => env(
+                'PASAX_DASHBOARD_PASSWORD',
+                'Admin',
+            ),";
+        if (! str_contains($content, $anchor)) {
+            return;
+        }
+
+        $block = $anchor."
+            'owner_email' => env('PASAX_OWNER_EMAIL'),
+            'owner_username' => env('PASAX_OWNER_USERNAME'),
+            'passwordless_owner' => (bool) env(
+                'PASAX_DASHBOARD_PASSWORDLESS_OWNER',
+                true,
+            ),";
+
+        $updated = str_replace($anchor, $block, $content);
+        if ($updated !== $content) {
+            File::put($configPath, $updated);
+            $this->info('  ✓ Konfigurasi akses owner passwordless disisipkan ke config/pasax.php.');
+        }
+    }
+
+    /**
+     * Perbarui pola `config_probe` pada config/pasax.php agar akses langsung ke berkas
+     * `.sqlite` / `.sqlite-wal` / `storage/app/pasax` ikut diblokir seketika oleh WAF.
+     */
+    protected function migrateSqliteProbeRulesInConfig(): void
+    {
+        $configPath = config_path('pasax.php');
+
+        if (! File::exists($configPath)) {
+            return;
+        }
+
+        $content = File::get($configPath);
+
+        if (str_contains($content, 'storage\\/app\\/pasax')) {
+            return;
+        }
+
+        $legacyLine = '"/(^|\\/)(backup|dump|database|db|data|www)\\.(sql|sql\\.gz|tar|tar\\.gz|zip|bak|old|orig|save|swp)\\b/i",';
+        if (! str_contains($content, $legacyLine)) {
+            return;
+        }
+
+        $replacement = '"/(^|\\/)(backup|dump|database|db|data|www|pasax(?:-[a-z0-9-]+)?)\\.(sql|sql\\.gz|sqlite|sqlite3|sqlite-wal|sqlite-shm|db|tar|tar\\.gz|zip|bak|old|orig|save|swp)\\b/i",'
+            ."\n                    "
+            .'"/(^|\\/)storage\\/app\\/pasax(\\/|$)/i",';
+
+        $updated = str_replace($legacyLine, $replacement, $content);
+
+        if ($updated !== $content) {
+            File::put($configPath, $updated);
+            $this->info('  ✓ Aturan blokir probing berkas SQLite & storage/app/pasax diperbarui di config/pasax.php.');
         }
     }
 

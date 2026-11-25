@@ -2,8 +2,6 @@
 
 namespace Pasax\SecureMonitor\Support;
 
-use Illuminate\Support\Facades\Schema;
-
 class PasaxTableResolver
 {
     /**
@@ -22,8 +20,12 @@ class PasaxTableResolver
      *    - If legacy does not exist in DB, but prefixed exists (post-migration), use prefixed.
      *    - Otherwise, use legacy.
      */
-    public static function resolve(string $key, string $configured, string $legacy, string $prefixed): string
-    {
+    public static function resolve(
+        string $key,
+        string $configured,
+        string $legacy,
+        string $prefixed,
+    ): string {
         if (isset(self::$resolvedTables[$key])) {
             return self::$resolvedTables[$key];
         }
@@ -34,8 +36,13 @@ class PasaxTableResolver
         }
 
         try {
+            $schema = PasaxDatabase::schema();
+
             if ($configured === $prefixed) {
-                if (! Schema::hasTable($prefixed) && Schema::hasTable($legacy)) {
+                if (
+                    !$schema->hasTable($prefixed) &&
+                    $schema->hasTable($legacy)
+                ) {
                     return self::$resolvedTables[$key] = $legacy;
                 }
 
@@ -43,7 +50,10 @@ class PasaxTableResolver
             }
 
             if ($configured === $legacy) {
-                if (! Schema::hasTable($legacy) && Schema::hasTable($prefixed)) {
+                if (
+                    !$schema->hasTable($legacy) &&
+                    $schema->hasTable($prefixed)
+                ) {
                     return self::$resolvedTables[$key] = $prefixed;
                 }
 

@@ -2,6 +2,25 @@
 
 All notable changes to `pasax/secure-monitor` will be documented in this file.
 
+## [1.1.0] - 2026-11-25
+
+### Added
+
+- **Database SQLite Terisolasi (`pasax_sqlite`)** (`src/Support/PasaxDatabase.php`, `src/Concerns/ResolvesPasaxTable.php`, `config/pasax.php`):
+  - Memisahkan seluruh tabel Pasax (`pasax_logs`, `pasax_blocked_ips`, `pasax_settings`, `pasax_allowed_ips`, `pasax_trusted_ips`, `pasax_login_attempts`, `pasax_user_logins`, `pasax_ip_unblock_requests`) ke `storage/app/pasax/pasax.sqlite` dengan mode WAL, `busy_timeout`, izin berkas ketat (`0750`/`0640`), `.gitignore` otomatis, serta penyelarasan `:memory:` saat unit/feature test `RefreshDatabase`.
+  - Migrasi otomatis data `pasax_*` lama dari database host ke `pasax_sqlite` pada perintah `pasax:upgrade` dan `pasax:install`.
+- **Snapshot Backup Atomik & Unduh Dasbor** (`src/Console/Commands/PasaxBackupCommand.php`, `src/Http/Controllers/Dashboard/PasaxServerController.php`):
+  - Perintah CLI `php artisan pasax:backup` (`--list`, `--keep`) dan tombol backup/unduh di panel Server Audit berbasis SQLite `VACUUM INTO` dengan proteksi path traversal (`403`) dan header `X-Content-Type-Options: nosniff`.
+- **Akses Owner Passwordless Terikat Akun & HMAC SSO** (`src/Http/Controllers/Dashboard/PasaxAuthController.php`, `src/Support/PasaxDashboardSecret.php`):
+  - Login dasbor terikat `PASAX_OWNER_EMAIL` / `PASAX_OWNER_USERNAME` serta verifikasi token HMAC SSO tanpa membuka celah login form tanpa password.
+
+### Security & Changed
+
+- **Migrasi Layanan Cloud ke `https://service.pasax.web.id`** (`src/Services/PasaxCloudService.php`, `src/Console/Commands/PasaxInstallCommand.php`):
+  - Memperbarui endpoint cloud default ke `https://service.pasax.web.id` serta verifikasi `api_key` dan konektivitas internet saat instalasi.
+- **Hardening WAF & Web Server terhadap Berkas SQLite** (`config/pasax.php`, `stubs/htaccess.stub`, `stubs/nginx.conf.stub`, `stubs/apache2.conf.stub`, `src/Console/Commands/PasaxUpgradeCommand.php`):
+  - Memblokir langsung akses HTTP ke berkas `.sqlite`, `.sqlite3`, `.sqlite-wal`, `.sqlite-shm`, `.db`, dan jalur `storage/app/pasax`.
+
 ## [1.2.1] - 2026-11-15
 
 ### Fixed

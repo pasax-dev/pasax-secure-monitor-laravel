@@ -16,6 +16,7 @@ use Pasax\SecureMonitor\Models\PasaxLog;
 use Pasax\SecureMonitor\Models\PasaxLoginAttempt;
 use Pasax\SecureMonitor\Models\PasaxSetting;
 use Pasax\SecureMonitor\Support\PasaxDashboardView;
+use Pasax\SecureMonitor\Support\PasaxDatabase;
 use Throwable;
 
 /**
@@ -589,7 +590,7 @@ class PasaxServerSecurityService
                 : 'Periksa DB_HOST, DB_DATABASE, DB_USERNAME, dan DB_PASSWORD pada .env.',
         );
 
-        $weakUser = in_array(
+        $weakUser = $driver !== 'sqlite' && in_array(
             strtolower($username),
             ['root', 'postgres', 'sa', 'admin'],
             true,
@@ -600,14 +601,60 @@ class PasaxServerSecurityService
             'database',
             'Hak akses user database',
             $weakUser ? 'warning' : 'ok',
-            $username !== '' ? $username : '(kosong)',
-            $weakUser
-                ? 'Aplikasi memakai akun superuser database. Bila kredensial bocor (mis. lewat .env), seluruh server database dapat dikuasai.'
-                : 'Aplikasi tidak memakai akun superuser database.',
+            $driver === 'sqlite'
+                ? 'SQLite (file-based)'
+                : ($username !== '' ? $username : '(kosong)'),
+            $driver === 'sqlite'
+                ? 'Koneksi utama menggunakan berkas SQLite tanpa akun superuser jaringan.'
+                : ($weakUser
+                    ? 'Aplikasi memakai akun superuser database. Bila kredensial bocor (mis. lewat .env), seluruh server database dapat dikuasai.'
+                    : 'Aplikasi tidak memakai akun superuser database.'),
             $weakUser
                 ? 'Buat user MySQL khusus aplikasi dengan hak terbatas pada satu database.'
                 : null,
         );
+
+        $pasaxDbStatus = PasaxDatabase::sqliteStatus();
+        try {
+            PasaxDatabase::connection()->getPdo();
+            $pasaxDbReachable = true;
+        } catch (Throwable) {
+            $pasaxDbReachable = false;
+        }
+        $checks[] = $this->check(
+            'pasax_database',
+            'Database & Antrian',
+            'database',
+            'Database keamanan Pasax (terisolasi)',
+            $pasaxDbReachable ? 'ok' : 'critical',
+            $pasaxDbStatus['is_sqlite']
+                ? ($pasaxDbStatus['is_isolated'] ? 'SQLite terisolasi' : 'SQLite').' / '.$pasaxDbStatus['relative_path']
+                : $pasaxDbStatus['connection'].' ('.$pasaxDbStatus['driver'].')',
+            $pasaxDbReachable
+                ? ($pasaxDbStatus['is_isolated']
+                    ? 'Tabel keamanan Pasax terisolasi di koneksi khusus dan tidak bercampur dengan tabel bisnis host.'
+                    : 'Koneksi database keamanan Pasax dapat diakses oleh aplikasi.')
+                : 'Database keamanan Pasax tidak dapat dibuka. Periksa PASAX_DB_CONNECTION / PASAX_DB_PATH pada .env.',
+            $pasaxDbReachable
+                ? null
+                : 'Pastikan direktori storage/app/pasax writable atau jalankan php artisan migrate.',
+        );
+        if ($pasaxDbStatus['is_sqlite']) {
+            $checks[] = $this->check(
+                'pasax_sqlite_wal',
+                'Database & Antrian',
+                'database',
+                'SQLite WAL Mode Pasax',
+                $pasaxDbStatus['wal_enabled'] ? 'ok' : 'warning',
+                strtoupper($pasaxDbStatus['journal_mode']),
+                $pasaxDbStatus['wal_enabled']
+                    ? 'Mode journal WAL aktif agar pencatatan ancaman berjalan cepat tanpa mengunci bacaan dashboard.'
+                    : 'SQLite tidak berjalan dalam mode WAL; performa penulisan konkuren dapat lebih lambat.',
+                $pasaxDbStatus['wal_enabled']
+                    ? null
+                    : 'Setel PASAX_DB_SQLITE_WAL=true pada berkas .env.',
+            );
+        }
 
         $pending = $this->pendingMigrations();
         $checks[] = $this->check(
@@ -1485,6 +1532,9 @@ class PasaxServerSecurityService
                 ? 'aktif'
                 : 'nonaktif',
             'database' => (string) config('database.default', 'mysql'),
+            'pasax_database' => PasaxDatabase::isSqlite()
+                ? 'pasax_sqlite ('.PasaxDatabase::toRelativePath(PasaxDatabase::sqlitePath()).')'
+                : (PasaxDatabase::connectionName() ?? (string) config('database.default', 'mysql')),
             'cache' => (string) config('cache.default', 'database'),
             'queue' => (string) config('queue.default', 'sync'),
             'session' => (string) config('session.driver', 'database'),

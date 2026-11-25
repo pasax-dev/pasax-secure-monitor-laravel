@@ -85,8 +85,9 @@ class PasaxTrustedIp extends Model
      */
     public function user(): BelongsTo
     {
-        return $this->belongsTo(
+        return $this->belongsToHostModel(
             config('pasax.user_model', 'App\\Models\\User'),
+            relation: 'user',
         );
     }
 

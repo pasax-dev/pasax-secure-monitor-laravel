@@ -163,13 +163,13 @@ This project has domain-specific skills available in `**/skills/**`. You MUST ac
 
 This application is protected by **`pasax/secure-monitor`** (Bulwark), a standalone headless Web Application Firewall (WAF) and security toolkit for Laravel.
 
-- **Official Online Documentation**: https://pasax.web.id/
+- **Official Online Documentation**: https://pasax.web.id/docs/pasax-secure-monitor
 
 ### 1. Skills Activation
 - Activate the **`pasax`** skill (`.agents/skills/pasax/SKILL.md`) whenever writing, refactoring, or testing WAF rules, IP blocking, custom security dashboards, REST APIs, or server audits.
 
 ### 2. Zero-Vendor-Edit Policy
-- **NEVER modify files in `vendor/pasax/secure-monitor/`**. Any custom dashboard, controller, view, or API endpoint must be built inside the host application (`app/Http/Controllers/`, `resources/views/`, `routes/web.php`, `routes/api.php`).
+- **NEVER modify files in `vendor/pasax-dev/`**. Any custom dashboard, controller, view, or API endpoint must be built inside the host application (`app/Http/Controllers/`, `resources/views/`, `routes/web.php`, `routes/api.php`).
 
 ### 3. Core Facade & Service Usage
 - Always interact via `Pasax\SecureMonitor\Facades\Pasax`:

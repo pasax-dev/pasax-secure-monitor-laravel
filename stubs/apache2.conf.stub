@@ -174,7 +174,7 @@
     </FilesMatch>
 
     # Berkas backup, dump database, log, atau konfigurasi
-    <FilesMatch "\.(sql|bak|old|orig|save|swp|log|env|ini|conf|yml|yaml)$">
+    <FilesMatch "\.(sql|sqlite|sqlite3|sqlite-wal|sqlite-shm|db|bak|old|orig|save|swp|log|env|ini|conf|yml|yaml)$">
         <IfModule mod_authz_core.c>
             Require all denied
         </IfModule>
